@@ -45,11 +45,13 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - Best-shot ring animates in once (no endless spin). Sideways phone gets grid-left / controls-right.
 - Online message lines say "You" for your own seat; names over 12 characters are cut with "…".
 - Ship positions never in `publicView`, even after the game; local games reveal the computer's fleet at the end from the local state.
+- Browser Back goes to the previous tab (79be9f1), not off the page.
+- Design pass v9: heatmap amber→red with the faintest cells left clear; target board glows blue on your shot; status is a pill; Fire is neutral until a square is picked; small controls get invisible 40px hit areas; Lab/Rules/Settings show the Play status (not Paper's); tray ship icons on laptop only (phone tray stays one row).
 
 ## NOT verified
 - The printed 1967 rule sheet itself (no scan found); 1967 facts come from secondary sources (see rules-check).
 - Real iPhone (only WebKit headless at 393 px). Drag on a real touch screen not tried.
 - 1967 "advanced Salvo" (only the number of hits announced) not built.
-- Browser Back during a game leaves the page (tabs add no history); the game comes back on return because local games now resume.
+- Design pass (v9, 2026-10-20) checked only in headless WebKit 393 px + 1280 desktop; heatmap colours, fleet-tally size, turn glow not seen on a real iPhone.
 - Firestore logs "access control checks" errors in Safari when a page reloads/leaves mid-request (inside online.js/Firebase; harmless). online.js marks empty seats `online:true` (worked around in our lobby; reported, not edited).
 - "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).
