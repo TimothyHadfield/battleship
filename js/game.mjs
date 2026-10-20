@@ -6,6 +6,7 @@ export function makeGame(E, D, AI) {
     id: "battleship",
     minSeats: 2, maxSeats: 2,
     setup(n, options = {}, rng = Math.random) {
+      if (options.resume) return JSON.parse(JSON.stringify(options.resume)); // a saved local game, picked up after a reload
       const st = E.newGame(options, rng);
       const lv = options.levels || [];
       st.levels = [0, 1].map((i) => (AI.LEVELS.includes(lv[i]) ? lv[i] : "hard"));

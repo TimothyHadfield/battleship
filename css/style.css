@@ -227,3 +227,13 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
 .tray button { flex: 1 1 auto; justify-content: center; }
 .fchip .hitn { color: var(--bad); font-weight: 700; }
 .msg.sub.hit { color: #e9a3a1; } .msg.sub.sunk { color: var(--warm); } .msg.sub.miss { color: var(--muted); }
+/* phone turned sideways: grid on the left, controls on the right */
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 999px) {
+  .top { height: 36px; }
+  .tabs button { height: 40px; }
+  #tab-play, #tab-paper { flex-direction: row; }
+  .playmain { padding: 4px 6px; }
+  .pbar { flex-basis: 24px; }
+  .pside { flex: 0 0 50%; border-top: 0; border-left: 1px solid var(--line); grid-template-columns: 118px 1fr; padding: 6px 10px; }
+  .msg { font-size: 13px; }
+}

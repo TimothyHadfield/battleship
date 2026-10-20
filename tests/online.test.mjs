@@ -101,4 +101,15 @@ ok(`secrecy: in ${checked} mid-game positions, moving a hidden fleet changes not
   assert.ok(last.pub.winner === 0 || last.pub.winner === 1);
   ok("local room (you + computer, Salvo) plays to the finish with no errors");
 }
+// 5. A saved local game picks up exactly where it was after a reload (setup with options.resume).
+{
+  const rng = mulberry(77);
+  let s = game.setup(2, { levels: ["hard", "medium"], salvo: true }, rng, []);
+  for (let k = 0; k < 14 && !game.isOver(s); k++) { const seat = game.toAct(s)[0]; s = game.apply(s, seat, game.bot({ pub: game.publicView(s) }, seat, rng)); }
+  const saved = JSON.parse(JSON.stringify(s));
+  const back = game.setup(2, { resume: saved }, mulberry(1), []);
+  assert.deepEqual(back, s, "resumed game differs from the saved one");
+  assert.notEqual(back, saved, "resume must copy, not share, the saved state");
+  ok("a saved local game resumes exactly (same fleets, shots and turn)");
+}
 console.log(pass + " online tests passed");

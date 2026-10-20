@@ -1,11 +1,11 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js?v=7";
-import { makeGame } from "./game.mjs?v=7";
+import { createLocal, createOnline } from "./online.js?v=8";
+import { makeGame } from "./game.mjs?v=8";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.7";
+const VERSION = "2026-10-20.8";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (p) => (p >= 0.995 && p < 1 ? ">99" : p > 0 && p < 0.005 ? "<1" : Math.round(p * 100)) + "%";
@@ -160,6 +160,7 @@ function stopLocal() {
 }
 function startNew(mode) {
   stopLocal();
+  if (store.local) { delete store.local; save(); }
   P.mode = mode; P.snapKey = null; P.view = 0; P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.cover = null; P.lastMsg = null;
   resetGrid(big); resetGrid(small);
   newPlacing(0);
@@ -177,7 +178,8 @@ function curSnap() {
 const nameOf = (seat) => {
   const sn = P.snap;
   if (P.mode === "computer") return seat === 0 ? "You" : AI.NAMES[(sn && sn.pub && sn.pub.levels[1]) || S.level];
-  if (sn && sn.seats && sn.seats[seat]) return sn.seats[seat].name || "Player " + (seat + 1);
+  if (P.mode === "online" && sn && seat === sn.mySeat) return "You";
+  if (sn && sn.seats && sn.seats[seat]) { const n = sn.seats[seat].name || "Player " + (seat + 1); return n.length > 12 ? n.slice(0, 11) + "…" : n; }
   return "Player " + (seat + 1);
 };
 
@@ -208,7 +210,42 @@ function onSnap(snap) {
       P.passT = setTimeout(() => { if (g === P.gen) showCover(pub.turn, false); }, 1300);
     }
   }
+  if (P.mode !== "online") saveLocal();
   renderPlay();
+}
+
+// computer and pass-the-phone games survive a reload (iPhone Safari reloads background tabs)
+function saveLocal() {
+  if (!P.room || P.room.mode !== "local") return;
+  const st = P.room.state;
+  if (st.phase === "fire") store.local = { mode: P.mode, state: st, study: P.study, seen: P.seen, view: P.view };
+  else if (st.phase === "over" && store.local) delete store.local;
+  else return;
+  save();
+}
+function localRoom(seats, names, options) {
+  const g = P.gen;
+  const room = createLocal({ game, seats, options, names, botDelayMs: 650 });
+  room.on("change", (snap) => { if (g === P.gen) onSnap(snap); });
+  room.on("error", (e) => toast((e && e.message) || String(e)));
+  P.room = room;
+  room.start();
+  return room;
+}
+function resumeLocal() {
+  const L = store.local;
+  if (!L || !L.state || L.state.phase !== "fire" || !["computer", "pass"].includes(L.mode)) return false;
+  try {
+    stopLocal();
+    P.mode = L.mode; P.snapKey = null; P.view = L.view || 0; P.sel = []; P.study = L.study || []; P.seen = L.seen || [0, 0];
+    P.endShown = false; P.cover = null; P.lastMsg = null; P.placing = null;
+    resetGrid(big); resetGrid(small); closeSheet();
+    const pass = P.mode === "pass", lv = L.state.levels || ["hard", S.level];
+    if (pass) P.cover = L.state.turn; // no hand-over timer while the cover goes up
+    localRoom(pass ? ["human", "human"] : ["human", "computer"], pass ? ["Player 1", "Player 2"] : ["You", AI.NAMES[lv[1]]], { resume: L.state });
+    if (pass) showCover(L.state.turn, false);
+    return true;
+  } catch (e) { delete store.local; save(); return false; }
 }
 
 function showCover(seat, placing) {
@@ -290,7 +327,13 @@ function scheduleFind() {
     const opts = { named: S.named, noTouch: pl.noTouch };
     let tot = 0; const G = 40;
     for (let i = 0; i < G; i++) tot += SIM.shotsToSink("hard", pl.fleet, pl.ships, opts, Math.random);
-    const mean = tot / G, ref = LAB.fleetMeans.hard.means;
+    let ref = LAB.fleetMeans.hard.means;
+    if (pl.noTouch && LAB.variants && LAB.variants.noTouch) {
+      // the reference fleets were measured with touching allowed; rescale them to the no-touch average
+      const avg = ref.reduce((x, y) => x + y, 0) / ref.length, k = LAB.variants.noTouch.hard.mean / avg;
+      ref = ref.map((x) => x * k);
+    }
+    const mean = tot / G;
     const below = ref.filter((x) => x < mean).length + ref.filter((x) => x === mean).length / 2;
     P.find = { mean, pct: below / ref.length };
     if (tab === "play" && P.placing === pl) renderPlay();
@@ -514,18 +557,16 @@ async function ready() {
   store.lastFleet = { edition: S.edition, ships: pl.ships }; save();
   const a = E.placeMove(pl.ships);
   if (P.mode === "online") {
-    const r = await P.room.act(a); if (!r.ok) toast(r.message || "Not sent."); return;
+    if (P.readySent) return;
+    P.readySent = true;
+    const r = await P.room.act(a); P.readySent = false;
+    if (!r.ok) toast(r.message || "Not sent."); return;
   }
   if (!P.room) {
     const opts = Object.assign(rulesOpts(), { levels: ["hard", S.level] });
     const seats = P.mode === "pass" ? ["human", "human"] : ["human", "computer"];
     const names = P.mode === "pass" ? ["Player 1", "Player 2"] : ["You", AI.NAMES[S.level]];
-    const g = P.gen;
-    const room = createLocal({ game, seats, options: opts, names, botDelayMs: 650 });
-    room.on("change", (snap) => { if (g === P.gen) onSnap(snap); });
-    room.on("error", (e) => toast((e && e.message) || String(e)));
-    P.room = room;
-    room.start();
+    localRoom(seats, names, opts);
   }
   P.placing = null;
   P.room.act(a, P.mode === "pass" ? P.view : 0);
@@ -593,7 +634,7 @@ function renderLobby() {
   const sn = P.snap;
   if (!sn) return;
   if (sn.status === "joining") { openSheet("lobby", `<h2>Joining…</h2><div class="muted">Waiting for the host to seat you.</div><div class="actions"><button class="btn" data-act="leave">Cancel</button></div>`); return; }
-  const seats = (sn.seats || []).map((s, i) => `<div class="seatrow"><span class="dot${s.kind === "computer" || s.online ? " on" : ""}"></span><span style="flex:1">${s.kind === "empty" ? '<span class="muted">Open seat</span>' : esc(s.name || "Player " + (i + 1))}${i === sn.mySeat ? " (you)" : ""}${s.isHost ? ' <span class="muted">host</span>' : ""}</span>${sn.isHost && i !== sn.mySeat ? (s.kind === "empty" ? `<button class="btn small" data-seat="${i}" data-kind="computer">Computer</button>` : s.kind === "computer" ? `<button class="btn small" data-seat="${i}" data-kind="empty">Open</button>` : "") : ""}</div>`).join("");
+  const seats = (sn.seats || []).map((s, i) => `<div class="seatrow"><span class="dot${s.kind === "computer" || (s.kind === "human" && s.online) ? " on" : ""}"></span><span style="flex:1">${s.kind === "empty" ? '<span class="muted">Open seat</span>' : esc(s.name || "Player " + (i + 1))}${i === sn.mySeat ? " (you)" : ""}${s.isHost ? ' <span class="muted">host</span>' : ""}</span>${sn.isHost && i !== sn.mySeat ? (s.kind === "empty" ? `<button class="btn small" data-seat="${i}" data-kind="computer">Computer</button>` : s.kind === "computer" ? `<button class="btn small" data-seat="${i}" data-kind="empty">Open</button>` : "") : ""}</div>`).join("");
   const o = sn.options || {};
   const ruleBits = [o.edition === "mb1967" ? "1967 fleet" : "Hasbro fleet", o.salvo ? (o.salvoAll ? "Salvo (all at once)" : "Salvo") : "One shot a turn", o.named === false ? "unnamed hits" : null, o.noTouch ? "no touching" : null].filter(Boolean).join(" · ");
   openSheet("lobby", `<h2>Room</h2><div class="code">${esc(sn.code || "")}</div>
@@ -718,7 +759,9 @@ $("#pinfo").addEventListener("click", (ev) => {
       const K = paperK();
       if (!D.namedCandidates(K, f).length) toast(`The ${f.name} can't fit those hits. Check the last call.`);
     }
-    if (rec.k) toast(`${f.name} sunk.`);
+    const own = pp.shots.filter((x) => x.s === id).map((x) => x.c);
+    if (rec.k && rec.s && !E.isLine(own, f.len)) toast(`Those ${f.name} hits aren't in one straight row. Check your calls.`);
+    else if (rec.k) toast(`${f.name} sunk.`);
   }
   save(); renderPaper();
 });
@@ -852,7 +895,7 @@ let resumed = false;
 try { const v = JSON.parse(localStorage.getItem("online.battleship")); resumed = !!(v && v.code); } catch (e) {}
 if (resumed) {
   openOnline().then((room) => room.resume()).then((back) => { if (!back) { P.online = null; startNew("computer"); } }).catch(() => { P.online = null; startNew("computer"); });
-} else startNew(S.opp === "pass" ? "pass" : "computer");
+} else if (!resumeLocal()) startNew(S.opp === "pass" ? "pass" : "computer");
 const start = (location.hash || "").slice(1);
 showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play");
 window.BSApp = { P, S, version: VERSION };
