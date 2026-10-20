@@ -5,7 +5,7 @@ import { makeGame } from "./game.mjs?v=8";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.8";
+const VERSION = "2026-10-20.9";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (p) => (p >= 0.995 && p < 1 ? ">99" : p > 0 && p < 0.005 ? "<1" : Math.round(p * 100)) + "%";
@@ -120,7 +120,10 @@ const isMobile = () => innerWidth < 900;
 
 // ------------------------------------------------------------------ tabs
 let tab = "play";
-function showTab(t) {
+// Each tab change is a history entry, so the browser's Back returns to the previous tab
+// instead of leaving the page mid-game (how: "push" | "replace" | "pop").
+function showTab(t, how = "push") {
+  const prev = tab;
   tab = t;
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
   document.querySelectorAll(".tab").forEach((s) => (s.hidden = s.id !== "tab-" + t));
@@ -129,9 +132,18 @@ function showTab(t) {
   if (t === "paper") renderPaper();
   if (t === "lab") renderLab();
   if (t === "settings") renderSettings();
-  try { history.replaceState(null, "", t === "play" ? location.pathname : "#" + t); } catch (e) {}
+  if (how === "pop") return;
+  const url = t === "play" ? location.pathname : "#" + t;
+  try { if (how === "push" && t !== prev) history.pushState({ tab: t }, "", url); else history.replaceState({ tab: t }, "", url); } catch (e) {}
 }
 $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) showTab(b.dataset.tab); });
+addEventListener("popstate", (e) => {
+  const sh = $("#sheet");
+  if (!sh.hidden && sh.dataset.kind !== "lobby") closeSheet();
+  const h = (location.hash || "").slice(1);
+  const t = (e.state && e.state.tab) || (["paper", "lab", "rules", "settings"].includes(h) ? h : "play");
+  showTab(t, "pop");
+});
 
 // ================================================================== PLAY
 const big = buildGrid($("#bigGrid")), small = buildGrid($("#smallGrid"));
@@ -897,5 +909,5 @@ if (resumed) {
   openOnline().then((room) => room.resume()).then((back) => { if (!back) { P.online = null; startNew("computer"); } }).catch(() => { P.online = null; startNew("computer"); });
 } else if (!resumeLocal()) startNew(S.opp === "pass" ? "pass" : "computer");
 const start = (location.hash || "").slice(1);
-showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play");
+showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play", "replace");
 window.BSApp = { P, S, version: VERSION };
