@@ -274,3 +274,21 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
   .pside { flex: 0 0 50%; border-top: 0; border-left: 1px solid var(--line); grid-template-columns: 118px 1fr; padding: 6px 10px; }
   .msg { font-size: 13px; }
 }
+/* Sound & effects block (rendered by the shared fx.js): match the Settings rows above */
+.set .fx-set .fx-row { border-top: 0; border-bottom: 1px solid var(--line); padding: 9px 0; min-height: 48px; gap: 10px; }
+.set .fx-set .fx-lab { gap: 6px; }
+.set .fx-set .fx-row.dim { opacity: .35; }
+.set .fx-set .switch { display: block; width: 40px; height: 24px; }
+.set .fx-set .switch span { display: none; } /* our .switch draws its own knob from the .on class */
+.set .fx-set .q { display: inline-block; font-size: 11px; line-height: 16px; }
+.set .fx-set .seg { display: inline-flex; gap: 0; padding: 2px; border-radius: 9px; }
+.set .fx-set .seg button { padding: 5px 9px; border-radius: 7px; font-size: 13px; font-weight: inherit; }
+.set .fx-set .seg button[aria-pressed="true"] { background: var(--accent); color: #0f1117; font-weight: 700; }
+.set .fx-set .fx-test { background: var(--card); }
+.set .fx-set .fx-vol { accent-color: var(--accent); }
+/* the Animations / Speed settings drive the game's own peg and ring animations too */
+.fx-noanim .peg.new, .fx-noanim .cell.best::after, .fx-noanim .ship.fadein { animation: none !important; }
+.fx-noanim .cell.splash::before, .fx-noanim .cell.boom::before { display: none; }
+.fx-fast .peg.new { animation-duration: .25s; }
+.fx-fast .cell.splash::before, .fx-fast .cell.boom::before { animation-duration: .4s; }
+.fx-fast .cell.best::after, .fx-fast .ship.fadein { animation-duration: .33s; }

@@ -1,11 +1,24 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js?v=9";
-import { makeGame } from "./game.mjs?v=9";
+import { createLocal, createOnline } from "./online.js?v=10";
+import { makeGame } from "./game.mjs?v=10";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.10";
+const VERSION = "2026-10-20.11";
+
+// sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
+const FX = window.FX, BSFx = window.BSFx;
+// grid cells are buttons: aiming has its own quiet click, so the automatic button tap skips them
+FX.init({ game: "battleship", accent: "#6ea8fe", clickSelector: 'button:not(.cell), [role="button"], .btn' });
+// the game's own CSS animations (peg drop, splash ring) follow the Animations / Speed settings too
+function fxRootClasses() {
+  const s = FX.settings, r = document.documentElement;
+  r.classList.toggle("fx-noanim", !s.animations);
+  r.classList.toggle("fx-fast", s.animSpeed === "fast");
+}
+fxRootClasses();
+FX.onChange(fxRootClasses);
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (p) => (p >= 0.995 && p < 1 ? ">99" : p > 0 && p < 0.005 ? "<1" : Math.round(p * 100)) + "%";
@@ -41,6 +54,7 @@ const TIPS = {
   salvoAll: "Hasbro's box: call your salvo one shot at a time and hear each answer. 1967 box: call the whole salvo, then hear the answers.",
   named: "The official rules say which ship you hit. Off = the box's harder variant: only 'hit', sinkings still announced.",
   noTouch: "A common house rule: ships may not sit side by side or corner to corner.",
+  fxsound: "Sounds follow your phone's volume. The iPhone silent switch may mute them.",
   edition: "Same five sizes (5,4,3,3,2). 2002 Hasbro names: Carrier, Battleship, Destroyer, Submarine, Patrol Boat. 1967 Milton Bradley: Aircraft Carrier, Battleship, Cruiser, Submarine, Destroyer.",
 };
 document.addEventListener("click", (ev) => {
@@ -153,6 +167,11 @@ addEventListener("popstate", (e) => {
 
 // ================================================================== PLAY
 const big = buildGrid($("#bigGrid")), small = buildGrid($("#smallGrid"));
+// shots on board b (at seat b's fleet) are drawn on the big grid when b is the opponent
+const fxd = BSFx.director(FX, {
+  grid: (b) => (b === me() ? small : big).sea,
+  cell: (b, c) => (b === me() ? small : big).cells[c],
+});
 const P = {
   mode: "computer",        // computer | pass | online
   room: null, snap: null, view: 0,
@@ -180,7 +199,7 @@ function startNew(mode) {
   stopLocal();
   if (store.local) { delete store.local; save(); }
   P.mode = mode; P.snapKey = null; P.view = 0; P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.cover = null; P.lastMsg = null;
-  resetGrid(big); resetGrid(small);
+  resetGrid(big); resetGrid(small); fxd.reset();
   newPlacing(0);
   closeSheet();
   renderPlay();
@@ -230,6 +249,13 @@ function onSnap(snap) {
   }
   if (P.mode !== "online") saveLocal();
   renderPlay();
+  // sounds come from what changed in the shot record, so every mode (and every online player) hears the same
+  const cs = curSnap();
+  if (cs && cs.pub) fxd.update(cs.pub, me(), isMyTurn(cs));
+}
+function isMyTurn(sn) {
+  const pub = sn.pub;
+  return pub.phase === "fire" && pub.turn === me() && (P.mode !== "pass" || P.cover == null) && (P.mode !== "online" || sn.myTurn);
 }
 
 // computer and pass-the-phone games survive a reload (iPhone Safari reloads background tabs)
@@ -257,7 +283,7 @@ function resumeLocal() {
     stopLocal();
     P.mode = L.mode; P.snapKey = null; P.view = L.view || 0; P.sel = []; P.study = L.study || []; P.seen = L.seen || [0, 0];
     P.endShown = false; P.cover = null; P.lastMsg = null; P.placing = null;
-    resetGrid(big); resetGrid(small); closeSheet();
+    resetGrid(big); resetGrid(small); closeSheet(); fxd.reset();
     const pass = P.mode === "pass", lv = L.state.levels || ["hard", S.level];
     if (pass) P.cover = L.state.turn; // no hand-over timer while the cover goes up
     localRoom(pass ? ["human", "human"] : ["human", "computer"], pass ? ["Player 1", "Player 2"] : ["You", AI.NAMES[lv[1]]], { resume: L.state });
@@ -377,8 +403,9 @@ function rotateSel() {
     const rr = v ? r - d * s : r, cc = v ? c : c - d * s;
     const cand = shiftInto(len, v, rr, cc);
     const next = cand && tryShip(i, cand);
-    if (next) { pl.ships = next; P.find = null; scheduleFind(); renderPlay(); return; }
+    if (next) { pl.ships = next; P.find = null; scheduleFind(); FX.play("place"); renderPlay(); return; }
   }
+  FX.play("error");
   toast("No room to turn it there.");
 }
 function moveSelTo(cell) {
@@ -386,8 +413,8 @@ function moveSelTo(cell) {
   const [r, c] = E.rc(cell);
   const cand = shiftInto(cells.length, p.vertical, r, c);
   const next = cand && tryShip(i, cand);
-  if (next) { pl.ships = next; P.find = null; scheduleFind(); renderPlay(); }
-  else toast(pl.noTouch ? "Ships can't overlap or touch." : "Ships can't overlap.");
+  if (next) { pl.ships = next; P.find = null; scheduleFind(); FX.play("place"); renderPlay(); }
+  else { FX.play("error"); toast(pl.noTouch ? "Ships can't overlap or touch." : "Ships can't overlap."); }
 }
 
 // drag ships with the finger (pointer events)
@@ -421,8 +448,8 @@ function endDrag() {
   P.drag = null;
   const pl = P.placing;
   if (d.moved) {
-    if (E.fleetError(pl.ships, pl.fleet, pl.noTouch)) { pl.ships[d.i] = d.orig; toast(pl.noTouch ? "Ships can't overlap or touch." : "Ships can't overlap."); }
-    else { P.find = null; scheduleFind(); }
+    if (E.fleetError(pl.ships, pl.fleet, pl.noTouch)) { pl.ships[d.i] = d.orig; FX.play("error"); toast(pl.noTouch ? "Ships can't overlap or touch." : "Ships can't overlap."); }
+    else { P.find = null; scheduleFind(); FX.play("place"); }
   } else if (pl.sel === d.i) rotateSel();
   else pl.sel = d.i;
   renderPlay();
@@ -556,9 +583,10 @@ $("#bigGrid").addEventListener("click", (ev) => {
     }
     return;
   }
-  if (!big.el.classList.contains("firing")) return;
+  if (!big.el.classList.contains("firing")) return void FX.play("error");
   const c = +b.dataset.c, need = sn.pub.need || 1;
-  if (!b.classList.contains("open")) return;
+  if (!b.classList.contains("open")) return void FX.play("error");
+  if (need !== 1 || P.sel[0] !== c) FX.play("click");
   if (need === 1) {
     if (P.sel[0] === c) return fire();
     P.sel = [c];
@@ -587,6 +615,7 @@ async function ready() {
     localRoom(seats, names, opts);
   }
   P.placing = null;
+  FX.play("place", { pitch: 0.7 }); // the fleet goes down: a heavier clunk
   P.room.act(a, P.mode === "pass" ? P.view : 0);
 }
 
@@ -645,7 +674,7 @@ async function openOnline() {
   room.on("error", (m) => toast(m));
   P.online = room; P.room = room; P.mode = "online"; P.snapKey = null;
   P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.placing = null;
-  resetGrid(big); resetGrid(small);
+  resetGrid(big); resetGrid(small); fxd.reset();
   return room;
 }
 function renderLobby() {
@@ -678,7 +707,7 @@ document.addEventListener("click", async (ev) => {
   if (act === "again") { closeSheet(); return startNew(P.mode === "online" ? "computer" : P.mode); }
   if (act === "endsheet") return showEnd();
   if (act === "rotate") return rotateSel();
-  if (act === "random") { newPlacing(P.placing ? P.placing.seat : 0); return renderPlay(); }
+  if (act === "random") { newPlacing(P.placing ? P.placing.seat : 0); FX.play("slide"); return renderPlay(); }
   if (act === "ready") return ready();
   if (act === "best") { const sn = curSnap(); const { K } = heatNow(); P.sel = D.topK(K, sn.pub.need || 1); return renderPlay(); }
   if (act === "fire") return fire();
@@ -763,8 +792,9 @@ $("#pinfo").addEventListener("click", (ev) => {
   if (k === "undo") { pp.shots.pop(); resetGrid(paperGrid); }
   if (k === "cancel") paperSel = -1;
   if (k === "clear") { pp.shots = pp.shots.filter((x) => x.c !== paperSel); paperSel = -1; resetGrid(paperGrid); }
-  if (k === "miss") { pp.shots.push({ c: paperSel, h: 0, n: pp.shots.length + 1 }); paperSel = -1; }
-  if (k === "hit") { pp.shots.push({ c: paperSel, h: 1, n: pp.shots.length + 1 }); paperSel = -1; }
+  const cellAt = paperSel >= 0 ? paperGrid.cells[paperSel] : null;
+  if (k === "miss") { pp.shots.push({ c: paperSel, h: 0, n: pp.shots.length + 1 }); paperSel = -1; BSFx.paper(FX, "miss"); }
+  if (k === "hit") { pp.shots.push({ c: paperSel, h: 1, n: pp.shots.length + 1 }); paperSel = -1; BSFx.paper(FX, "hit", cellAt, paperGrid.sea); }
   if (k === "hitship" || k === "sank") {
     const id = b.dataset.id, f = fleet.find((s) => s.id === id);
     const rec = { c: paperSel, h: 1, n: pp.shots.length + 1 };
@@ -773,6 +803,7 @@ $("#pinfo").addEventListener("click", (ev) => {
       if (pp.shots.filter((x) => x.s === id).length + 1 >= f.len) rec.k = id;
     } else rec.k = id;
     pp.shots.push(rec); paperSel = -1;
+    BSFx.paper(FX, rec.k ? "sank" : "hit", cellAt, paperGrid.sea, new Set(pp.shots.filter((x) => x.k).map((x) => x.k)).size >= fleet.length);
     if (pp.opts.named && !rec.k) {
       const K = paperK();
       if (!D.namedCandidates(K, f).length) toast(`The ${f.name} can't fit those hits. Check the last call.`);
@@ -887,7 +918,14 @@ function renderSettings() {
     <h3>Help while playing</h3>
     <div class="setrow"><span class="lbl">Heatmap ${qBtn("heat")}</span>${switchHtml("heat", S.heat)}</div>
     <div class="setrow"><span class="lbl">Best-shot ring</span>${switchHtml("best", S.best)}</div>
+    <h3>Sound &amp; effects</h3><div id="fxSet"></div>
     <p class="ver">Version ${VERSION}</p></div>`;
+  const fx = FX.renderSettings($("#fxSet"));
+  if (fx) {
+    // the shared block, dressed in this page's own pieces: ? opens our tip, Test is our small button
+    const q = $(".q", fx); if (q) q.dataset.q = "fxsound";
+    const t = $(".fx-test", fx); if (t) t.classList.add("btn", "small");
+  }
 }
 document.addEventListener("click", (ev) => {
   const t = ev.target.closest("[data-set]"); if (!t) return;

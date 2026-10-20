@@ -18,10 +18,31 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 | Paper tab (real-game companion with heatmap) | done |
 | Lab: strength, histogram, your-fleet test, calibration, head-to-head, first-player edge, hiding styles, prior map, rule-switch effects | done |
 | Rules, Settings | done |
+| Sounds, celebrations, animations (`js/fx.js` shared copy + `js/fxgame.js` director), "Sound & effects" in Settings | done v10; `tests/fx.test.mjs` |
+
+### Event → sound map (js/fxgame.js + app.mjs)
+| Event | Sound / effect |
+|---|---|
+| Ship dropped, moved or turned in placement | `place` (wood clunk) |
+| Random fleet | `slide` · Ready (fleet goes down) `place` at pitch 0.7 |
+| Illegal: overlap/touch, no room to turn, tapping a used square, tapping while it's not your turn | `error` |
+| Pick a square to aim | `click` (quiet ui) |
+| Any shot fired (you, computer, friend, online opponent) | `whoosh`, then impact ~300 ms later as the peg lands (salvo-all-at-once: 170 ms apart) |
+| Miss | `splash` |
+| Your hit | `explosion` + target grid shakes |
+| Hit on your fleet | `hit` (thud) + your grid shakes + red flash on the square |
+| You sink a ship | + `sink` + star burst (`celebrate big`) at the square |
+| Your ship sunk | + `sink` + red flash over your grid |
+| Turn passes to you | `turn` chime, after the other side's impact |
+| Game over | `celebrate win` (confetti + fanfare) or `lose`, with the result sheet (900 ms) |
+| Paper tab answers | miss `splash`, hit `explosion` + shake, sank + `sink` + stars, last ship sunk = `win` |
+| Opponent's sounds | same sounds at 0.5–0.8 volume (never louder than yours) |
+| Reload / join mid-game | silent (no replay of old shots) |
 
 ## Standing instructions (Tim's words)
 - "could you really check out the board and card games projects I have going … Base the style off of what I did with the other games with a similar aspect and thought process behind it"
 - Phase 2: "build regular play online with a computer or other online players for all the games and their common varients that match exactly the play of the in-person game." · "Brainstorm what additions you can do to the game with data, exploration, theory" · "Really work on the webdesign of the games, aswell as art, fitting it with an iphone and computer" · "make sure that everything works properlly without errors" · "Make sure to get everything right like rules and artwork and specific numbers"
+- FX (2026-10-20): "add opptional sounds you can add to the games that reflect what's happening in the game accurately as well as win celebrations, and other fun annimations to go along with everything. Just make sure everything is customizable in the settings so the user can play as preffered."
 - Newest: "add risk, clue, battleship, connect four, stratego, clue, checkers, pandemic, splendor, king of tokyo, 7 wonders, and evolution to the list of games."
 - Money $0; no copyrighted art or rulebook text; never write in a `.claude` folder.
 
@@ -34,6 +55,8 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - online.js re-sends identical snapshots on every presence heartbeat; `onSnap` skips them (key = JSON of the snapshot). Without that, the panel redrew under the finger.
 - Headless clicks on a busy laptop: Playwright's "stable" wait times out; test scripts use `{force:true}` + explicit waits (scratchpad `bs-full.mjs`, `bs-two.mjs`).
 - Bump `?v=N` in index.html AND the two imports in app.mjs AND `VERSION` together.
+- `js/fx.js` is a verbatim copy of `Board and Card Games/_fx/fx.js`; never edit here. Game-specific sounds/timing live in `js/fxgame.js`; the Settings look is matched by `.set .fx-set …` rules at the end of style.css (fx.js renders `<label class="switch"><input><span>`; we hide the span and let our `.switch.on` draw the knob). Its `?` gets `data-q="fxsound"` so our own tip handler (which stops the click) shows the text.
+- The FX Animations/Speed switches also drive our CSS peg/ring animations via `html.fx-noanim` / `html.fx-fast`.
 - Computer / pass-the-phone games are saved in localStorage `battleship:v1` → `local` during firing and resumed on load (`game.setup` with `options.resume`).
 
 ## Decisions
@@ -46,6 +69,7 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - Online message lines say "You" for your own seat; names over 12 characters are cut with "…".
 - Ship positions never in `publicView`, even after the game; local games reveal the computer's fleet at the end from the local state.
 - Browser Back goes to the previous tab (79be9f1), not off the page.
+- FX v10: your hits `explosion`, hits on your fleet a duller `hit` thud (so you can tell by ear); no extra "your turn" pulse (the existing blue board glow does it); grid cells skip the automatic button tap (aiming has its own `click`).
 - Design pass v9: heatmap amber→red with the faintest cells left clear; target board glows blue on your shot; status is a pill; Fire is neutral until a square is picked; small controls get invisible 40px hit areas; Lab/Rules/Settings show the Play status (not Paper's); tray ship icons on laptop only (phone tray stays one row).
 
 ## NOT verified
@@ -54,4 +78,5 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - 1967 "advanced Salvo" (only the number of hits announced) not built.
 - Design pass (v9, 2026-10-20) checked only in headless WebKit 393 px + 1280 desktop; heatmap colours, fleet-tally size, turn glow not seen on a real iPhone.
 - Firestore logs "access control checks" errors in Safari when a page reloads/leaves mid-request (inside online.js/Firebase; harmless). online.js marks empty seats `online:true` (worked around in our lobby; reported, not edited).
+- Sounds never heard: headless WebKit on Windows has no Web Audio. Sound calls verified by spying `FX.play` in the browser and by node tests with a fake AudioContext; real loudness/feel on iPhone untested. Shake/stars/confetti seen only in headless screenshots (low frame rate). Online FX not run with two browsers (same code path as local: snapshot diff).
 - "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).
