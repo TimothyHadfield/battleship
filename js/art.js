@@ -43,7 +43,7 @@
       s += '<rect x="' + (W * 0.36) + '" y="36" width="' + (W * 0.24) + '" height="28" rx="5" fill="#9aa3b5" stroke="#2b3242" stroke-width="2.5"/>';
       s += '<ellipse cx="' + (W * 0.5) + '" cy="50" rx="8" ry="7" fill="#3a4152"/>';
     } else if (kind === 'submarine') {
-      s += '<ellipse cx="' + (W * 0.55) + '" cy="50" rx="34" ry="11" fill="#5c667c" stroke="#1d222d" stroke-width="2.5"/>';
+      s += '<ellipse cx="' + (W * 0.55) + '" cy="50" rx="34" ry="11" fill="#3b4354" stroke="#1d222d" stroke-width="2.5"/>';
       s += '<rect x="' + (W * 0.55 - 2) + '" y="36" width="4" height="10" fill="#1d222d"/>';
       s += '<path d="M14,50 l-6,-14 l8,0 z M14,50 l-6,14 l8,0 z" fill="#3a4152"/>';
     } else { // patrol boat
@@ -66,9 +66,10 @@
   function shipG(id, len, firstCell, vertical, cls) {
     var r = Math.floor(firstCell / 10), c = firstCell % 10, W = len * 100, k = kindOf(id, len), g = 'hg' + (uid++);
     var t = vertical ? 'translate(' + (c * 100 + 100) + ',' + (r * 100) + ') rotate(90)' : 'translate(' + (c * 100) + ',' + (r * 100) + ')';
-    var fill = k === 'submarine' ? ['#4a5468', '#2e3546'] : ['#8791a5', '#5d6679'];
+    // [sheen on the upper edge, hull, keel shadow]; the sub is darker but still stands off the navy sea
+    var fill = k === 'submarine' ? ['#98a3b8', '#6a758b', '#434c5f'] : ['#b4bccb', '#8791a5', '#5a6376'];
     return '<g class="ship ' + (cls || '') + '" data-ship="' + id + '" transform="' + t + '">' +
-      '<defs><linearGradient id="' + g + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + fill[0] + '"/><stop offset="1" stop-color="' + fill[1] + '"/></linearGradient></defs>' +
+      '<defs><linearGradient id="' + g + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + fill[0] + '"/><stop offset=".3" stop-color="' + fill[1] + '"/><stop offset="1" stop-color="' + fill[2] + '"/></linearGradient></defs>' +
       '<g transform="translate(4,4) scale(' + ((W - 8) / W) + ',.92)">' +
       '<path d="' + hull(W, k) + '" fill="rgba(0,0,0,.35)" transform="translate(3,5)"/>' +
       '<path d="' + hull(W, k) + '" fill="url(#' + g + ')" stroke="#20252f" stroke-width="3"/>' +

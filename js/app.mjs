@@ -1,11 +1,11 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js?v=8";
-import { makeGame } from "./game.mjs?v=8";
+import { createLocal, createOnline } from "./online.js?v=9";
+import { makeGame } from "./game.mjs?v=9";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.9";
+const VERSION = "2026-10-20.10";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (p) => (p >= 0.995 && p < 1 ? ">99" : p > 0 && p < 0.005 ? "<1" : Math.round(p * 100)) + "%";
@@ -72,8 +72,10 @@ function buildGrid(el) {
 function heatBg(p, max) {
   if (!p || !max) return "";
   const t = Math.min(1, p / max);
+  // amber → red; the faint end fades to clear sea instead of a low-alpha brown wash
   const k = Math.pow(t, 2.2);
-  return `hsla(${Math.round(46 - 40 * k)}, 92%, 56%, ${(0.03 + 0.62 * k).toFixed(3)})`;
+  if (k < 0.04) return "";
+  return `hsla(${Math.round(40 - 38 * k)}, 95%, ${Math.round(58 - 6 * k)}%, ${(0.03 + 0.69 * k).toFixed(3)})`;
 }
 /* o: { state[100] 0/1/2, heat?, best?, sel?[], last?, fresh?Set, ships?[{id,len,cells,cls}], firing?, pctText? } */
 function paint(G, o) {
@@ -122,9 +124,13 @@ const isMobile = () => innerWidth < 900;
 let tab = "play";
 // Each tab change is a history entry, so the browser's Back returns to the previous tab
 // instead of leaving the page mid-game (how: "push" | "replace" | "pop").
+let playStatus = "";
 function showTab(t, how = "push") {
   const prev = tab;
+  if (prev === "play") playStatus = $("#status").innerHTML;
   tab = t;
+  // Lab / Rules / Settings show the live game's status, not the Paper tab's
+  if (t === "lab" || t === "rules" || t === "settings") $("#status").innerHTML = playStatus;
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
   document.querySelectorAll(".tab").forEach((s) => (s.hidden = s.id !== "tab-" + t));
   $("#tip").hidden = true;
@@ -323,7 +329,7 @@ function renderPlacing(sn) {
   const findHtml = f ? `<span class="chip" style="background:${rg(f.pct)}">${f.mean.toFixed(0)} shots</span> <span class="muted" style="font-size:12px">better hidden than ${Math.round(f.pct * 100)}%</span>` : `<span class="muted" style="font-size:12px">measuring…</span>`;
   $("#info").innerHTML = `
     <div class="row" style="font-size:12px;color:var(--muted)">Drag a ship, or tap it to turn it.</div>
-    <div class="tray">${pl.fleet.map((s, i) => `<button data-pick="${i}" class="${i === pl.sel ? "on" : ""}">${esc(s.short)}</button>`).join("")}</div>
+    <div class="tray">${pl.fleet.map((s, i) => `<button data-pick="${i}" class="${i === pl.sel ? "on" : ""}">${Art.shipIcon(s.id, s.len)}<span>${esc(s.short)}</span></button>`).join("")}</div>
     <div class="row" style="gap:6px"><span style="font-size:12px;font-weight:650">Findable</span>${qBtn("find")}${findHtml}</div>
     <div class="row"><button class="btn small" data-act="rotate">Turn</button><button class="btn small" data-act="random">Random</button><button class="btn primary grow" data-act="ready" ${err ? "disabled" : ""}>Ready</button></div>`;
   $("#log").innerHTML = "";
@@ -618,7 +624,7 @@ function showEnd() {
     const g = P.study.reduce((a, s) => a + s.got / s.n, 0) / P.study.length, b = P.study.reduce((a, s) => a + s.best / s.n, 0) / P.study.length;
     quality = `<span>Your aim ${qBtn("quality")}</span><b style="color:${rg(b ? g / b : 0)}">${pct(g)} <span class="muted" style="font-weight:500">vs best ${pct(b)}</span></b>`;
   }
-  openSheet("end", `<h2>${title}</h2>
+  openSheet("end", `<h2 class="${P.mode === "pass" ? "wintitle" : won ? "wintitle" : "losetitle"}">${title}</h2>
     <div class="stats">
       <span>Your shots</span><b>${mine.length}</b>
       <span>Hits</span><b>${hits} of ${mine.length} (${mine.length ? Math.round((hits / mine.length) * 100) : 0}%)</b>
