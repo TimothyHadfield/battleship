@@ -63,7 +63,17 @@
   }
 
   /** <g> for a ship of `len` covering cells; x,y,w,h in grid units of 100. */
-  function shipG(id, len, firstCell, vertical, cls) {
+  // the real plastic ships have a peg hole on the deck over every square (hits go in as red pegs)
+  function holes(len) {
+    var s = '';
+    for (var i = 0; i < len; i++) {
+      var x = i * 100 + 50;
+      s += '<circle cx="' + x + '" cy="50" r="12" fill="#c3cad6" opacity=".55"/><circle cx="' + x + '" cy="50" r="9" fill="#1b2029"/><circle cx="' + x + '" cy="52" r="5" fill="#000" opacity=".5"/>';
+    }
+    return s;
+  }
+
+  function shipG(id, len, firstCell, vertical, cls, withHoles) {
     var r = Math.floor(firstCell / 10), c = firstCell % 10, W = len * 100, k = kindOf(id, len), g = 'hg' + (uid++);
     var t = vertical ? 'translate(' + (c * 100 + 100) + ',' + (r * 100) + ') rotate(90)' : 'translate(' + (c * 100) + ',' + (r * 100) + ')';
     // [sheen on the upper edge, hull, keel shadow]; the sub is darker but still stands off the navy sea
@@ -73,7 +83,7 @@
       '<g transform="translate(4,4) scale(' + ((W - 8) / W) + ',.92)">' +
       '<path d="' + hull(W, k) + '" fill="rgba(0,0,0,.35)" transform="translate(3,5)"/>' +
       '<path d="' + hull(W, k) + '" fill="url(#' + g + ')" stroke="#20252f" stroke-width="3"/>' +
-      details(k, W) + '</g></g>';
+      details(k, W) + (withHoles ? holes(len) : '') + '</g></g>';
   }
 
   /** Small standalone ship icon (fleet chips). */

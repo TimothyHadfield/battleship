@@ -1,11 +1,11 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js?v=10";
-import { makeGame } from "./game.mjs?v=10";
+import { createLocal, createOnline } from "./online.js?v=11";
+import { makeGame } from "./game.mjs?v=11";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.11";
+const VERSION = "2026-10-20.12";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
@@ -120,7 +120,7 @@ function paint(G, o) {
   if (key !== G.shipKey) {
     G.svg.innerHTML = ships.map((sh) => {
       const pl = Art.cellsToPlacement(sh.cells);
-      return Art.shipG(sh.id, sh.len, pl.first, pl.vertical, sh.cls);
+      return Art.shipG(sh.id, sh.len, pl.first, pl.vertical, sh.cls, true);
     }).join("");
     G.shipKey = key;
   }
@@ -359,6 +359,7 @@ function renderPlacing(sn) {
     <div class="row" style="gap:6px"><span style="font-size:12px;font-weight:650">Findable</span>${qBtn("find")}${findHtml}</div>
     <div class="row"><button class="btn small" data-act="rotate">Turn</button><button class="btn small" data-act="random">Random</button><button class="btn primary grow" data-act="ready" ${err ? "disabled" : ""}>Ready</button></div>`;
   $("#log").innerHTML = "";
+  pegTray(null);
 }
 
 function scheduleFind() {
@@ -466,7 +467,23 @@ function renderWaiting(sn) {
   $("#pbar").innerHTML = `<span class="grow">Waiting for <b>${esc(nameOf(1 - me()))}</b> to hide a fleet</span>`;
   paint(big, { state: new Array(100).fill(0), ships: (mine || []).map((cells, i) => ({ id: fleet[i].id, len: fleet[i].len, cells })) });
   paint(small, { state: new Array(100).fill(0) });
+  pegTray(null);
   $("#info").innerHTML = `<div class="msg">Fleet hidden.</div><div class="muted" style="font-size:13px">The game starts when both fleets are in.</div>${P.mode === "online" ? `<div class="row"><button class="btn small" data-act="leave">Leave room</button></div>` : ""}`;
+}
+
+// ---------------- peg tray (front of the case): loose red and white pegs that run down as the game goes on.
+// One case holds 84 white + 42 red pegs (half the classic box); every shot either side marks takes one.
+let trayKey = "";
+function pegTray(pub, my) {
+  let w = 84, r = 42;
+  if (pub) for (const b of [0, 1]) for (const x of pub.shots[b]) { if (x.h) r--; else w--; }
+  const nw = w > 0 ? Math.max(1, Math.round((w / 84) * 22)) : 0, nr = r > 0 ? Math.max(1, Math.round((r / 42) * 14)) : 0;
+  const key = nw + "/" + nr;
+  if (key === trayKey) return;
+  trayKey = key;
+  const T = window.TABLE, rnd = T.rng(T.hash("pegtray"));
+  const pegs = (n, cls) => Array.from({ length: n }, () => `<i class="${cls}" style="left:${(4 + rnd() * 84).toFixed(1)}%;top:${(8 + rnd() * 56).toFixed(1)}%"></i>`).join("");
+  $("#pegTray").innerHTML = `<div class="comp">${pegs(nw, "w")}</div><div class="comp">${pegs(nr, "r")}</div>`;
 }
 
 // ---------------- battle
@@ -515,7 +532,10 @@ function renderBattle(sn) {
 
   // top bar
   const myShots = pub.shots[opp].length;
-  $("#pbar").innerHTML = fleetChips(pub, opp) + `<span style="white-space:nowrap">Shots <b>${myShots}</b></span>`;
+  // far side of the table: the opponent's seat (name plate) behind the back of their raised lid
+  const theirTurn = pub.phase === "fire" && pub.turn === opp;
+  $("#pbar").innerHTML = `<span class="oppseat tbl-seat${theirTurn ? " is-turn" : ""}"><span class="tbl-plate">${esc(nameOf(opp))}</span></span>` + fleetChips(pub, opp) + `<span style="white-space:nowrap">Shots <b>${myShots}</b></span>`;
+  pegTray(pub, my);
   // status
   const st = $("#status");
   if (pub.phase === "over") st.innerHTML = pub.winner === my ? "<b>You win</b>" : esc(nameOf(pub.winner)) + " wins";

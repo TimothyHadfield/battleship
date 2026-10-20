@@ -8,7 +8,8 @@
 <meta name="theme-color" content="#0f1117">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/table.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body>
 <div id="app">
@@ -28,7 +29,7 @@
 
   <main>
     <!-- PLAY -->
-    <section id="tab-play" class="tab">
+    <section id="tab-play" class="tab tbl-surface tbl-wood-dark">
       <div class="playmain">
         <div class="pbar" id="pbar"></div>
         <div class="gwrap" id="bigWrap"><div class="grid big" id="bigGrid"></div></div>
@@ -37,6 +38,7 @@
         <div class="mine" id="mineBox">
           <div class="minehead" id="mineHead">Your fleet</div>
           <div class="gwrap small" id="smallWrap"><div class="grid small" id="smallGrid"></div></div>
+          <div class="pegtray" id="pegTray" aria-hidden="true"></div>
         </div>
         <div class="info" id="info"></div>
         <div class="logbox"><div class="sidehead">Log</div><ol class="log" id="log"></ol></div>
@@ -46,7 +48,7 @@
     </section>
 
     <!-- PAPER (real-game companion) -->
-    <section id="tab-paper" class="tab" hidden>
+    <section id="tab-paper" class="tab tbl-surface tbl-wood-dark" hidden>
       <div class="playmain">
         <div class="pbar" id="ppbar"></div>
         <div class="gwrap" id="paperWrap"><div class="grid big" id="paperGrid"></div></div>
@@ -84,14 +86,15 @@
   <div class="tip" id="tip" hidden></div>
   <div class="toast" id="toast" hidden></div>
 </div>
-<script src="js/engine.js?v=10"></script>
-<script src="js/density.js?v=10"></script>
-<script src="js/ai.js?v=10"></script>
-<script src="js/sim.js?v=10"></script>
-<script src="js/art.js?v=10"></script>
-<script src="js/lab-data.js?v=10"></script>
-<script src="js/fx.js?v=10"></script>
-<script src="js/fxgame.js?v=10"></script>
-<script type="module" src="js/app.mjs?v=10"></script>
+<script src="js/engine.js?v=11"></script>
+<script src="js/density.js?v=11"></script>
+<script src="js/ai.js?v=11"></script>
+<script src="js/sim.js?v=11"></script>
+<script src="js/art.js?v=11"></script>
+<script src="js/lab-data.js?v=11"></script>
+<script src="js/fx.js?v=11"></script>
+<script src="js/table.js?v=11"></script>
+<script src="js/fxgame.js?v=11"></script>
+<script type="module" src="js/app.mjs?v=11"></script>
 </body>
 </html>

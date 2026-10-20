@@ -17,6 +17,12 @@
 - **Verified:** `npm test` 14 + 5 + 6 fx (fx test seen failing with no director, and failing on a win/lose swap and a replay-on-resume mutant); headless WebKit 393×659 + 1280×800 full games (win vs Random, loss vs Density): FX.play spy counts match shots, celebrate win/lose once, confetti canvas present, Settings switches toggle, `?` tip works, no console errors, no overflow. Screenshots in the manager's scratchpad `design/battleship-fx/`.
 - **Open:** see NOT verified (real audio on iPhone).
 
+## 2026-10-20 — real-table look (v11)
+- **Asked:** Tim: games should look "almost identical to how the board or card layout looks like in real life … like you're looking through a camera … connected to a user's glasses". Brief: shared `_table` kit, re-copy fx.js 1.0.3, no rule changes.
+- **Built:** wood table surface; plastic case look on every grid (moulded labels, peg hole per square, dark target lid, lighter wave-textured ocean base leaning away); ships with deck peg holes; real-looking pegs pressed in; peg tray running down with use; opponent name plate on the back of their lid; laptop layout = lid above, base in front, helpers in a slim side panel; placing shows the big board as the ocean base; sunk enemy ships faint on the lid. fx.js 1.0.3 re-copied (Battleship has no own Speed setting, so no workaround to remove).
+- **Verified:** `npm test` green; scratchpad `table/battleship/shots.mjs` full games at 393×659, 1280×800, 320×560, 659×393 (WebKit): no console errors, no page scroll, no horizontal overflow; Chrome check of the 3-D base; one read-only reviewer pass, fixes applied.
+- **Open:** NOT verified list.
+
 ## 2026-10-20 — design pass (v9)
 - **Asked:** Tim: "review them again for design improvements especially visually". Polish only; no rule or behaviour changes.
 - **Built:** fleet tally icons 10→13 px (18 desktop); sub/ship hulls lighter with a sheen; heatmap amber→red, faint cells clear; blue glow on the target board on your shot; status pill; Fire neutral until armed; win green / loss red sheet title; invisible 40 px hit areas on ?, switches, small/seg/tray buttons; bigger desktop pegs; desktop heat numbers dimmed except best/selected; tray ship icons (laptop); Lab chart height capped; status no longer stuck on "Paper game" in Lab/Rules/Settings.

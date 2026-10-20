@@ -5,6 +5,7 @@ Tim's global rules apply. Read `progress.md` first.
 
 - $0, no build step, no dependencies. Plain UMD scripts (node + `window.BS*`): `engine.js` (rules), `density.js` (heatmap), `ai.js` (computers), `sim.js` (fast simulations), `art.js` (original SVG). UI is one ES module `js/app.mjs`, which imports `js/online.js` + `js/game.mjs`.
 - `js/online.js` is a copy of `Board and Card Games/_online/online.js`. Never edit it here; re-copy when the shared one changes. gameId `battleship`. No Firebase project or rules file of our own.
+- `css/table.css` + `js/table.js` (shared table kit) and `js/fx.js` are copies of `Board and Card Games/_table/` and `_fx/`; never edit them here.
 - Ship positions live only in `privateView`; `publicView` is the shot record. `tests/online.test.mjs` proves it.
 - Tests: `npm test` (~15 s). Each test was seen failing on a deliberately broken engine.
 - Lab numbers: `node tools/lab-data.js 0.4` (~4 min) → `js/lab-data.js`. Rerun after changing any computer or the heatmap.

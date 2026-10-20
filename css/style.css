@@ -292,3 +292,109 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
 .fx-fast .peg.new { animation-duration: .25s; }
 .fx-fast .cell.splash::before, .fx-fast .cell.boom::before { animation-duration: .4s; }
 .fx-fast .cell.best::after, .fx-fast .ship.fadein { animation-duration: .33s; }
+
+/* ---------- real table (2026-10-20): the game as it sits on a wooden table, seen from your seat ----------
+   Your case is open in front of you: the target grid is the upright lid, the ocean grid is the base lying
+   flat (tilted away), the peg tray runs along its front edge. The opponent sits across, behind their lid. */
+#tab-play .playmain, #tab-paper .playmain { background: none; }
+#tab-play .pside, #tab-paper .pside { border-top: 0; }
+/* the back of the opponent's raised lid, with their name plate */
+.pbar { margin: 0 4px 6px; padding: 0 8px; border-radius: 10px 10px 3px 3px; color: #c3c9d6;
+  background: linear-gradient(#3a4252, #262c38 70%, #1d222c);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), inset 0 -2px 0 rgba(0,0,0,.4), 0 4px 8px rgba(0,0,0,.45); }
+.pbar b { color: #fff; }
+.oppseat { flex: 0 0 auto; min-width: 0; max-width: 30%; }
+.oppseat .tbl-plate { font-size: 10px; line-height: 15px; padding: 1px 5px; }
+/* moulded plastic case around every grid: labels raised on the rim, the sea panel set into it */
+.grid { --rim: 5px; border-radius: 9px;
+  background: linear-gradient(165deg, #7c8696, #5a6372 50%, #454d5a);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.32), inset 0 -2px 1px rgba(0,0,0,.35), 0 2px 3px rgba(0,0,0,.45), 0 10px 18px rgba(0,0,0,.4); }
+.grid.small { --rim: 3px; border-radius: 6px; }
+.grid .cols { right: var(--rim); color: #eef1f6; text-shadow: 0 1px 0 rgba(0,0,0,.45); }
+.grid .rows { bottom: var(--rim); color: #eef1f6; text-shadow: 0 1px 0 rgba(0,0,0,.45); }
+.sea { right: var(--rim); bottom: var(--rim); border-radius: 4px;
+  background:
+    linear-gradient(rgba(170,200,235,.16) 1px, transparent 1px) 0 0 / 10% 10%,
+    linear-gradient(90deg, rgba(170,200,235,.16) 1px, transparent 1px) 0 0 / 10% 10%,
+    radial-gradient(120% 120% at 30% 20%, #102438, #07111c);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.7), inset 0 0 0 1px rgba(0,0,0,.6); }
+/* a peg hole in every square */
+.sea .cell { background-image: radial-gradient(circle closest-side, #03070c 0 17%, rgba(255,255,255,.16) 21%, transparent 27%); }
+/* the ocean grid (base) is lighter, with waves moulded in */
+#smallGrid .sea { background:
+    linear-gradient(rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / 10% 10%,
+    linear-gradient(90deg, rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / 10% 10%,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 8q6-5 12 0t12 0' fill='none' stroke='%23fff' stroke-opacity='.13' stroke-width='1.3'/%3E%3C/svg%3E") 0 0 / 12px 6px,
+    radial-gradient(120% 120% at 30% 20%, #23679c, #133f66); }
+/* it lies flat on the table, so it leans away from you */
+#smallWrap { perspective: 560px; perspective-origin: 50% 100%; }
+#smallWrap .grid { transform: rotateX(24deg); transform-origin: 50% 100%; }
+.grid.firing .sea { box-shadow: inset 0 2px 4px rgba(0,0,0,.7), 0 0 0 2px rgba(110,168,254,.6), 0 0 18px rgba(110,168,254,.28); }
+/* pegs: plastic pins seen end-on, round head with a dimple, same size red and white */
+.peg { position: relative; width: 42%; height: 42%; border-radius: 50%; }
+.peg::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; box-shadow: inset 0 1px 1px rgba(0,0,0,.28), 0 1px 0 rgba(255,255,255,.25); }
+.peg.hit { background: radial-gradient(circle at 36% 30%, #ffc2bc 0 9%, #e8423b 30%, #b01c20 68%, #6d0d10 100%);
+  box-shadow: 0 2px 2px rgba(0,0,0,.6), 0 3px 6px rgba(0,0,0,.35); }
+.peg.miss { width: 42%; height: 42%; opacity: 1; background: radial-gradient(circle at 36% 30%, #fff 0 14%, #eef0f4 40%, #c3c8d2 76%, #8d94a3 100%);
+  box-shadow: 0 2px 2px rgba(0,0,0,.6), 0 3px 6px rgba(0,0,0,.35); }
+/* a peg is pressed in from above: it comes down, its shadow tightens */
+@keyframes pegIn { from { transform: translateY(-40%) scale(1.9); opacity: 0; box-shadow: 0 14px 14px rgba(0,0,0,.25); } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
+/* ships: grey plastic pieces */
+.grid .ship.sunk { opacity: .75; filter: saturate(.4) brightness(.85); }
+/* peg tray moulded into the front of the base */
+.pegtray { flex: 0 0 auto; height: 15px; display: grid; grid-template-columns: 1.4fr 1fr; grid-template-rows: minmax(0, 1fr); gap: 3px; padding: 2px 3px; margin-top: 3px; border-radius: 5px;
+  background: linear-gradient(#59626f, #454d5a); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 4px rgba(0,0,0,.45); }
+.pegtray .comp { position: relative; border-radius: 3px; background: #1f242d; box-shadow: inset 0 2px 3px rgba(0,0,0,.75); overflow: hidden; }
+.pegtray i { position: absolute; width: 5px; height: 5px; border-radius: 50%; box-shadow: 0 1px 1px rgba(0,0,0,.7); }
+.pegtray i.w { background: radial-gradient(circle at 35% 30%, #fff, #c3c8d2 70%, #8d94a3); }
+.pegtray i.r { background: radial-gradient(circle at 35% 30%, #ff9b94, #d0302b 55%, #6d0d10); }
+.minehead { position: relative; z-index: 1; color: #e7dccb; text-shadow: 0 1px 1px rgba(0,0,0,.6); }
+/* helpers and buttons sit on the wood: give text a lift */
+#tab-play .info, #tab-paper .info { text-shadow: 0 1px 2px rgba(0,0,0,.55); }
+#tab-play .info .muted, #tab-play .aim .of, #tab-paper .info .muted, #tab-paper .aim .of { color: #cdc3b4; }
+.msg.miss { color: #d6ccbd; }
+@media (min-width: 900px) {
+  /* laptop: your case in the middle of the table (lid behind, base in front), the helpers in a slim side panel */
+  #tab-play { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto minmax(0, 1fr) 30%; }
+  #tab-play::before { content: ""; grid-column: 2; grid-row: 1 / 4; background: rgba(15,17,23,.9); border-left: 1px solid var(--line); }
+  #tab-play .playmain { grid-column: 1; grid-row: 1 / 3; padding-bottom: 4px; }
+  #tab-play .pside { display: contents; }
+  #tab-play .mine { grid-column: 1; grid-row: 3; align-items: center; padding: 0 18px 10px; min-height: 0; }
+  #tab-play .minehead { align-self: stretch; text-align: center; }
+  #tab-play .gwrap.small { flex: 1 1 auto; height: auto; width: 100%; align-items: flex-end; }
+  /* the base is drawn a little bigger than its row and leans back 38deg, so it reads as a board lying on the table */
+  #tab-play #smallGrid { width: min(100cqw, 132cqh); height: min(100cqw, 132cqh); flex: none; }
+  #tab-play .info { grid-column: 2; grid-row: 1; padding: 12px 16px 0; }
+  #tab-play .logbox { grid-column: 2; grid-row: 2 / 4; padding: 0 16px 12px; }
+  #tab-play .pegtray { height: 24px; width: min(460px, 70%); }
+  .pegtray i { width: 8px; height: 8px; }
+  #smallWrap { perspective: 900px; }
+  #smallWrap .grid { transform: rotateX(38deg); }
+  #tab-paper .pside { background: rgba(15,17,23,.9); }
+  .oppseat .tbl-plate { font-size: 12px; line-height: 18px; }
+}
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 999px) {
+  .pegtray, .oppseat { display: none; }
+}
+.playmain { min-width: 0; }
+.pbar { overflow: hidden; }
+/* very narrow phones: the fleet tally needs the whole lid; the opponent's name is in the status and messages already */
+@media (max-width: 379px) { .oppseat { display: none; } }
+/* setting up: in the real game you press your ships into the flat ocean base, so the big board shows the base while you place */
+.grid.big.placing .sea { background:
+    linear-gradient(rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / 10% 10%,
+    linear-gradient(90deg, rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / 10% 10%,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 8q6-5 12 0t12 0' fill='none' stroke='%23fff' stroke-opacity='.13' stroke-width='1.3'/%3E%3C/svg%3E") 0 0 / 16px 8px,
+    radial-gradient(120% 120% at 30% 20%, #23679c, #133f66); }
+/* on your lid you only ever see pegs: a sunk enemy ship is a faint outline under its red pegs */
+.grid.big .ship.wreck, #paperGrid .ship.wreck { opacity: .42; }
+.cell .peg { z-index: 1; }
+@media (min-width: 900px) { #tab-play .pegtray { width: min(300px, 70%); } }
+/* 320px phones: the aim line stays on one row so its ? never lands on Fire */
+@media (max-width: 379px) {
+  .pside { grid-template-columns: 124px 1fr; }
+  .aim { gap: 5px; }
+  .aim .cellname { flex: none; white-space: nowrap; font-size: 21px; }
+  .aim .chance { font-size: 13px; white-space: nowrap; }
+  .aim .of { min-width: 0; font-size: 11px; white-space: nowrap; }
+}
