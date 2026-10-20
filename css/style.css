@@ -207,6 +207,7 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
   .grid.small .cols, .grid.small .rows { font-size: 9px; }
   .pside { flex: 0 0 360px; display: flex; flex-direction: column; gap: 10px; border-top: 0; border-left: 1px solid var(--line); padding: 12px 16px; }
   .mine { flex: 0 0 auto; }
+  .info { flex: 0 0 auto; } /* never shrink under the log (it hid Best/Fire when two message lines showed) */
   .gwrap.small { flex: 0 0 300px; height: 300px; }
   .minehead { font-size: 13px; height: 20px; }
   .logbox { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }

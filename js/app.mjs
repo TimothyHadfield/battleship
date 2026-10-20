@@ -742,9 +742,9 @@ function histSvg() {
   return s + `</svg>`;
 }
 function calibSvg() {
-  const W = 320, H = 220, p = 30, sz = (v) => p + v * (W - p - 10), sy = (v) => H - p - v * (H - p - 10);
+  const W = 320, H = 220, p = 30, pl = 46, sz = (v) => pl + v * (W - pl - 10), sy = (v) => H - p - v * (H - p - 10);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Heatmap chance vs real hit rate">`;
-  for (const v of [0, 0.25, 0.5, 0.75, 1]) s += `<line x1="${sz(0)}" x2="${sz(1)}" y1="${sy(v)}" y2="${sy(v)}" stroke="#2a3042"/><text x="${p - 4}" y="${sy(v) + 4}" fill="#969db4" font-size="10" text-anchor="end">${v * 100}%</text><text x="${sz(v)}" y="${H - p + 14}" fill="#969db4" font-size="10" text-anchor="middle">${v * 100}%</text>`;
+  for (const v of [0, 0.25, 0.5, 0.75, 1]) s += `<line x1="${sz(0)}" x2="${sz(1)}" y1="${sy(v)}" y2="${sy(v)}" stroke="#2a3042"/><text x="${pl - 4}" y="${sy(v) + 4}" fill="#969db4" font-size="10" text-anchor="end">${v * 100}%</text><text x="${sz(v)}" y="${H - p + 14}" fill="#969db4" font-size="10" text-anchor="middle">${v * 100}%</text>`;
   s += `<line x1="${sz(0)}" y1="${sy(0)}" x2="${sz(1)}" y2="${sy(1)}" stroke="#969db4" stroke-dasharray="4 4"/>`;
   LAB.calib.forEach((b) => { if (b.n > 50) s += `<circle cx="${sz(b.said)}" cy="${sy(b.was)}" r="6" fill="#6ea8fe" stroke="#1a1e2b" stroke-width="2"><title>Map said ${pct(b.said)} · was ${pct(b.was)} (${b.n.toLocaleString()} squares)</title></circle>`; });
   s += `<text x="${sz(0.5)}" y="${H - 2}" fill="#969db4" font-size="11" text-anchor="middle">map said</text><text x="10" y="${sy(0.5)}" fill="#969db4" font-size="11" text-anchor="middle" transform="rotate(-90 10 ${sy(0.5)})">really hit</text>`;
