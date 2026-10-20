@@ -177,9 +177,11 @@
       if (st.phase !== 'place') throw new Error('not placing now');
       if (seat !== 0 && seat !== 1) throw new Error('bad seat');
       if (st.ships[seat]) throw new Error('fleet already placed');
-      var err = fleetError(action.ships, st.fleet, st.opts.noTouch);
+      // a move doc may not hold arrays inside arrays (Firestore), so ships arrive as [{cells:[...]}]
+      var ships = Array.isArray(action.ships) ? action.ships.map(function (x) { return Array.isArray(x) ? x : x && x.cells; }) : null;
+      var err = fleetError(ships, st.fleet, st.opts.noTouch);
       if (err) throw new Error(err);
-      st.ships[seat] = action.ships.map(function (cells) { return cells.slice().sort(function (x, y) { return x - y; }); });
+      st.ships[seat] = ships.map(function (cells) { return cells.slice().sort(function (x, y) { return x - y; }); });
       if (st.ships[0] && st.ships[1]) {
         st.phase = 'fire'; st.turn = st.first; st.volley = 1;
         st.shotsLeft = shotsFor(st, st.turn);
@@ -239,12 +241,14 @@
     };
   }
   function privateView(st, seat) { return { ships: st.ships[seat] || null }; }
+  /** The place move for a fleet, in the shape a Firestore move doc accepts. */
+  function placeMove(ships) { return { t: 'place', ships: ships.map(function (c) { return { cells: c.slice() }; }) }; }
 
   var api = {
     N: N, FLEETS: FLEETS, DEFAULTS: DEFAULTS, normOpts: normOpts, label: label, rc: rc,
     lineCells: lineCells, placements: placements, NB4: NB4, NB8: NB8, isLine: isLine,
     fleetError: fleetError, newGame: newGame, toAct: toAct, apply: apply, cellsPerAction: cellsPerAction,
-    afloat: afloat, shotsFor: shotsFor, publicView: publicView, privateView: privateView,
+    afloat: afloat, shotsFor: shotsFor, publicView: publicView, privateView: privateView, placeMove: placeMove,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.BSEngine = api;
 })(this);

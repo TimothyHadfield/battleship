@@ -17,7 +17,7 @@ export function makeGame(E, D, AI) {
     privateView(s, seat) { return E.privateView(s, seat); },
     bot(ctx, seat, rng = Math.random) {
       const pub = ctx.pub;
-      if (pub.phase === "place") return { t: "place", ships: AI.randomFleet(pub.fleet, pub.opts.noTouch, rng) };
+      if (pub.phase === "place") return E.placeMove(AI.randomFleet(pub.fleet, pub.opts.noTouch, rng));
       const K = D.knowledge(pub, 1 - seat);
       const level = (pub.levels && pub.levels[seat]) || "hard";
       return { t: "fire", cells: AI.choose(level, K, pub.need || 1, rng) };

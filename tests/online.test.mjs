@@ -14,6 +14,9 @@ const VARIANTS = [
   { named: false }, { noTouch: true }, { salvo: true, named: false, noTouch: true },
 ];
 const LV = ["easy", "medium", "hard"];
+// Firestore refuses arrays directly inside arrays in a move doc (found live 2026-10-20)
+const nested = (x) => Array.isArray(x) ? x.some((y) => Array.isArray(y) || nested(y)) : x && typeof x === "object" ? Object.values(x).some(nested) : false;
+let nestedMoves = 0;
 
 // 1. Bot-only games through the wrapper, every variant.
 let games = 0, moves = 0, bad = 0, notJson = 0, empty = 0;
@@ -26,7 +29,7 @@ for (let g = 0; g < 48; g++) {
     const ta = game.toAct(s);
     if (!ta.length) { empty++; break; }
     for (const seat of ta) {
-      try { s = game.apply(JSON.parse(JSON.stringify(s)), seat, game.bot({ pub: game.publicView(s), mine: game.privateView(s, seat), state: s }, seat, rng)); moves++; }
+      try { const a = game.bot({ pub: game.publicView(s), mine: game.privateView(s, seat), state: s }, seat, rng); if (nested(a)) nestedMoves++; s = game.apply(JSON.parse(JSON.stringify(s)), seat, a); moves++; }
       catch (e) { bad++; console.log("  bot move failed:", e.message, JSON.stringify(opt)); guard = 1e9; break; }
     }
     if (JSON.stringify(JSON.parse(JSON.stringify(s))) !== JSON.stringify(s)) notJson++;
@@ -34,6 +37,7 @@ for (let g = 0; g < 48; g++) {
   if (game.isOver(s)) { games++; assert.equal(s.sunk[1 - s.winner].length, 5); }
 }
 assert.equal(bad, 0, "bot moves are always legal");
+assert.equal(nestedMoves, 0, "a move has an array inside an array (Firestore rejects it)");
 assert.equal(games, 48); assert.equal(empty, 0); assert.equal(notJson, 0);
 ok(`48 bot-only games over 8 variants reach the end (${moves} moves); someone always due to act; state is JSON-safe`);
 

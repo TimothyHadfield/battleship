@@ -5,7 +5,7 @@ import { makeGame } from "./game.mjs";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.4";
+const VERSION = "2026-10-20.5";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (p) => (p >= 0.995 && p < 1 ? ">99" : p > 0 && p < 0.005 ? "<1" : Math.round(p * 100)) + "%";
@@ -506,7 +506,7 @@ async function ready() {
   const pl = P.placing;
   if (E.fleetError(pl.ships, pl.fleet, pl.noTouch)) return;
   store.lastFleet = { edition: S.edition, ships: pl.ships }; save();
-  const a = { t: "place", ships: pl.ships.map((s) => s.slice()) };
+  const a = E.placeMove(pl.ships);
   if (P.mode === "online") {
     const r = await P.room.act(a); if (!r.ok) toast(r.message || "Not sent."); return;
   }
