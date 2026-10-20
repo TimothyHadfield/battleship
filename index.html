@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Battleship</title>
+<meta name="description" content="Play Battleship against measured computers or friends online, with a live hit-chance heatmap, fleet-hiding analysis and a paper-game companion.">
+<meta name="theme-color" content="#0f1117">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css?v=4">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <a class="home" href="../" aria-label="All games">&#8249;</a>
+    <h1>Battleship</h1>
+    <div class="status" id="status"></div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="paper">Paper</button>
+    <button data-tab="lab">Lab</button>
+    <button data-tab="play" class="hubtab"><span>Play</span></button>
+    <button data-tab="rules">Rules</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+
+  <main>
+    <!-- PLAY -->
+    <section id="tab-play" class="tab">
+      <div class="playmain">
+        <div class="pbar" id="pbar"></div>
+        <div class="gwrap" id="bigWrap"><div class="grid big" id="bigGrid"></div></div>
+      </div>
+      <div class="pside">
+        <div class="mine" id="mineBox">
+          <div class="minehead" id="mineHead">Your fleet</div>
+          <div class="gwrap small" id="smallWrap"><div class="grid small" id="smallGrid"></div></div>
+        </div>
+        <div class="info" id="info"></div>
+        <div class="logbox"><div class="sidehead">Log</div><ol class="log" id="log"></ol></div>
+      </div>
+      <div class="sheet" id="sheet" hidden></div>
+      <div class="cover" id="cover" hidden></div>
+    </section>
+
+    <!-- PAPER (real-game companion) -->
+    <section id="tab-paper" class="tab" hidden>
+      <div class="playmain">
+        <div class="pbar" id="ppbar"></div>
+        <div class="gwrap" id="paperWrap"><div class="grid big" id="paperGrid"></div></div>
+      </div>
+      <div class="pside">
+        <div class="info" id="pinfo"></div>
+      </div>
+    </section>
+
+    <!-- LAB -->
+    <section id="tab-lab" class="tab" hidden><div class="scroll" id="lab"></div></section>
+
+    <!-- RULES -->
+    <section id="tab-rules" class="tab" hidden><div class="scroll rules" id="rules">
+      <h2>How to play</h2>
+      <p>Each player secretly places a fleet on a 10&times;10 grid (rows A&ndash;J, columns 1&ndash;10). Ships go straight across or straight down, never diagonally, never off the grid, never on top of each other.</p>
+      <table class="ftab"><thead><tr><th>Ship</th><th>1967 name</th><th>Squares</th></tr></thead><tbody>
+        <tr><td>Carrier</td><td>Aircraft Carrier</td><td>5</td></tr>
+        <tr><td>Battleship</td><td>Battleship</td><td>4</td></tr>
+        <tr><td>Destroyer</td><td>Cruiser</td><td>3</td></tr>
+        <tr><td>Submarine</td><td>Submarine</td><td>3</td></tr>
+        <tr><td>Patrol Boat</td><td>Destroyer</td><td>2</td></tr>
+      </tbody></table>
+      <p>Take turns calling one square, like <b>D-4</b>. The other player answers <b>miss</b> or <b>hit</b>, and on a hit says which ship. When every square of a ship is hit, its owner announces it sank. Sink all five ships first to win.</p>
+      <h3>Salvo</h3>
+      <p>You call one shot for each of your ships still afloat: five to start, one fewer for each of your ships that has been sunk. The current box has you call them one at a time, hearing each answer; the 1967 box has you call them all at once, then hear the answers.</p>
+      <h3>Other switches</h3>
+      <p><b>Don&rsquo;t name the ship</b> (the box&rsquo;s harder Salvo game): a hit is just &ldquo;hit&rdquo;; sinkings are still announced.<br><b>Ships can&rsquo;t touch</b> (a common house rule): no two ships side by side or corner to corner.</p>
+      <p class="muted">Rules in our own words. Every number and its source: <a href="https://github.com/TimothyHadfield/battleship/blob/main/docs/rules-check.md">rules check</a>.</p>
+    </div></section>
+
+    <!-- SETTINGS -->
+    <section id="tab-settings" class="tab" hidden><div class="scroll" id="settings"></div></section>
+  </main>
+  <div class="tip" id="tip" hidden></div>
+  <div class="toast" id="toast" hidden></div>
+</div>
+<script src="js/engine.js?v=4"></script>
+<script src="js/density.js?v=4"></script>
+<script src="js/ai.js?v=4"></script>
+<script src="js/sim.js?v=4"></script>
+<script src="js/art.js?v=4"></script>
+<script src="js/lab-data.js?v=4"></script>
+<script type="module" src="js/app.mjs?v=4"></script>
+</body>
+</html>
