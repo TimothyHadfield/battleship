@@ -1,11 +1,11 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js";
-import { makeGame } from "./game.mjs";
+import { createLocal, createOnline } from "./online.js?v=6";
+import { makeGame } from "./game.mjs?v=6";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.5";
+const VERSION = "2026-10-20.6";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (p) => (p >= 0.995 && p < 1 ? ">99" : p > 0 && p < 0.005 ? "<1" : Math.round(p * 100)) + "%";
@@ -160,7 +160,7 @@ function stopLocal() {
 }
 function startNew(mode) {
   stopLocal();
-  P.mode = mode; P.view = 0; P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.cover = null; P.lastMsg = null;
+  P.mode = mode; P.snapKey = null; P.view = 0; P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.cover = null; P.lastMsg = null;
   resetGrid(big); resetGrid(small);
   newPlacing(0);
   closeSheet();
@@ -182,6 +182,12 @@ const nameOf = (seat) => {
 };
 
 function onSnap(snap) {
+  if (P.mode === "online") {
+    // presence heartbeats re-send an unchanged snapshot; redrawing on each one swallowed taps
+    const key = JSON.stringify(snap);
+    if (key === P.snapKey) return;
+    P.snapKey = key;
+  }
   P.snap = snap;
   if (P.mode === "online") {
     if (["closed", "left", "none"].includes(snap.status)) {
@@ -578,7 +584,7 @@ async function openOnline() {
   const room = createOnline({ game, gameId: "battleship", botDelayMs: 800 });
   room.on("change", (snap) => { if (P.online === room) onSnap(snap); });
   room.on("error", (m) => toast(m));
-  P.online = room; P.room = room; P.mode = "online";
+  P.online = room; P.room = room; P.mode = "online"; P.snapKey = null;
   P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.placing = null;
   resetGrid(big); resetGrid(small);
   return room;

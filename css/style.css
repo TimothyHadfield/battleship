@@ -63,11 +63,12 @@ main { flex: 1 1 auto; min-height: 0; position: relative; }
 .cell { position: relative; display: flex; align-items: center; justify-content: center; border-radius: 3px; transition: background-color .35s; min-width: 0; min-height: 0; }
 .grid.firing .cell.open { cursor: crosshair; }
 .cell.sel { box-shadow: inset 0 0 0 2.5px var(--accent); background-color: rgba(110,168,254,.22) !important; }
-.cell.best::after { content: ""; position: absolute; inset: 14%; border-radius: 50%; border: 2px dashed var(--good); animation: spin 6s linear infinite; }
+.cell.best::after { content: ""; position: absolute; inset: 14%; border-radius: 50%; border: 2px dashed var(--good); animation: bestIn .6s ease-out both; }
 .grid.small .cell.best::after { display: none; }
 .cell.last { box-shadow: inset 0 0 0 1.5px var(--warm); }
 .cell .pct { font-size: 9px; color: rgba(255,255,255,.75); font-weight: 600; pointer-events: none; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* one-shot, not an endless spin: an infinite animation over the heatmap repainted the grid every frame (seconds per frame in headless WebKit) */
+@keyframes bestIn { from { transform: scale(1.6) rotate(-120deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .peg { width: 38%; height: 38%; border-radius: 50%; pointer-events: none; }
 .peg.hit { background: radial-gradient(circle at 35% 30%, #ffd0cc 0 12%, #ef6461 30%, #9c2a2e 100%); box-shadow: 0 1px 3px rgba(0,0,0,.6), 0 0 8px rgba(239,100,97,.45); }
 .peg.miss { width: 30%; height: 30%; background: radial-gradient(circle at 35% 30%, #fff 0 15%, #d9dde7 45%, #8a91a3 100%); box-shadow: 0 1px 2px rgba(0,0,0,.5); opacity: .9; }
