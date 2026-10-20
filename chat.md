@@ -6,3 +6,7 @@
 - **Built:** engine, density heatmap, computers, fast simulator, Lab data tool, SVG ships/pegs/icon, Play (computer / pass phone / online), Paper, Lab, Rules, Settings, docs/rules-check.md, docs/ideas.md.
 - **Verified:** `npm test` (14 engine + 4 online tests; each seen failing on a broken engine/density/publicView); phone-view WebKit 393 px and 1280 desktop screenshots of every tab, a full game to the end (headless script), no console errors, no overflow; two-browser online game on the live site (create, join, place, secrecy, reload-resume, finish).
 - **Open:** NOT verified list in progress.md.
+
+## 2026-10-20 — QA pass + fixes (v8)
+- **Found:** live online UI clicks timing out → endless spinning ring + identical-snapshot redraws (fixed); desktop info panel shrank under the log, hiding Best/Fire (fixed). Fresh QA agent: sideways phone unusable; reload wiped computer games; own name instead of "You" online; open-seat dot green; double Ready toast; paper accepted impossible sinking; no-touch Findable skewed. All fixed in 9b36b23.
+- **Verified:** npm test 14 + 5 (new resume test seen failing first); full live two-browser online game to the end on v7 (create, join, secrecy, Bob reload resumes with 49 shots, both see the result, no console errors); local full games phone + desktop + 1967 Salvo all-at-once; sideways 659×393 layout + reload resume.

@@ -30,6 +30,11 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - `js/online.js` is a verbatim copy of `_online/online.js`; never edit here.
 - Lab numbers are baked into `js/lab-data.js`; rerun `node tools/lab-data.js 0.4` after changing a computer or the heatmap.
 - Port 8731 on this laptop is taken by another server; serve locally with `python -m http.server <port> --directory <folder>`.
+- **Never use an endless CSS animation over the grid** (the old spinning best-ring made every frame repaint the heatmap: seconds per frame in headless WebKit, clicks timed out).
+- online.js re-sends identical snapshots on every presence heartbeat; `onSnap` skips them (key = JSON of the snapshot). Without that, the panel redrew under the finger.
+- Headless clicks on a busy laptop: Playwright's "stable" wait times out; test scripts use `{force:true}` + explicit waits (scratchpad `bs-full.mjs`, `bs-two.mjs`).
+- Bump `?v=N` in index.html AND the two imports in app.mjs AND `VERSION` together.
+- Computer / pass-the-phone games are saved in localStorage `battleship:v1` → `local` during firing and resumed on load (`game.setup` with `options.resume`).
 
 ## Decisions
 - 1967 "variant" = Milton Bradley names (Aircraft Carrier, Battleship, Cruiser, Submarine, Destroyer) + Salvo called all at once; sizes are the same 5/4/3/3/2 (sources agree).
@@ -37,9 +42,14 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - Heatmap = per-ship placement counts combined as independent; calibration over 800 games sits on the diagonal, so no joint sampler.
 - Computer levels named by method (Random / Hunt & target / Density), not Easy/Medium/Hard.
 - Placement starts pre-randomised so Ready works on the first tap.
+- Best-shot ring animates in once (no endless spin). Sideways phone gets grid-left / controls-right.
+- Online message lines say "You" for your own seat; names over 12 characters are cut with "…".
 - Ship positions never in `publicView`, even after the game; local games reveal the computer's fleet at the end from the local state.
 
 ## NOT verified
 - The printed 1967 rule sheet itself (no scan found); 1967 facts come from secondary sources (see rules-check).
 - Real iPhone (only WebKit headless at 393 px). Drag on a real touch screen not tried.
 - 1967 "advanced Salvo" (only the number of hits announced) not built.
+- Browser Back during a game leaves the page (tabs add no history); the game comes back on return because local games now resume.
+- Firestore logs "access control checks" errors in Safari when a page reloads/leaves mid-request (inside online.js/Firebase; harmless). online.js marks empty seats `online:true` (worked around in our lobby; reported, not edited).
+- "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).
