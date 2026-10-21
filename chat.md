@@ -23,6 +23,12 @@
 - **Verified:** `npm test` green; scratchpad `table/battleship/shots.mjs` full games at 393×659, 1280×800, 320×560, 659×393 (WebKit): no console errors, no page scroll, no horizontal overflow; Chrome check of the 3-D base; one read-only reviewer pass, fixes applied.
 - **Open:** NOT verified list.
 
+## 2026-10-20 — edge pass (v12)
+- **Asked:** Tim: "focus on making each game perfect especially in scenarios that the game doesn't expect or are a little weird." Brief also named the WebKit base-over-"Your fleet" overlap and the 320 px tally overlap; re-copy `_table` 1.0.1.
+- **Built:** 50 scenarios, 11 failed, all fixed (table in progress.md): tally fit, laptop base size, 320 px controls + online Leave, emoji name cut, opponent-left toast, online double-Fire guard, paper all-sunk + can't-fit lines, stale heat colour; `D.unfittable`; `.gitattributes`; table.css/table.js re-copied; v12.
+- **Verified:** `npm test` 14 + 5 + 6 + 7 edge (edge test seen failing first); scratchpad scripts each failing on the unfixed v11 copy and passing after: layout 28/28 WebKit + 28/28 Chromium (7 sizes), taps 30/30, online 14/14 (320/393/1280).
+- **Open:** NOT verified list.
+
 ## 2026-10-20 — design pass (v9)
 - **Asked:** Tim: "review them again for design improvements especially visually". Polish only; no rule or behaviour changes.
 - **Built:** fleet tally icons 10→13 px (18 desktop); sub/ship hulls lighter with a sheen; heatmap amber→red, faint cells clear; blue glow on the target board on your shot; status pill; Fire neutral until armed; win green / loss red sheet title; invisible 40 px hit areas on ?, switches, small/seg/tray buttons; bigger desktop pegs; desktop heat numbers dimmed except best/selected; tray ship icons (laptop); Lab chart height capped; status no longer stuck on "Paper game" in Lab/Rules/Settings.

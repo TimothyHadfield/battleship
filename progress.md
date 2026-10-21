@@ -20,6 +20,24 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 | Rules, Settings | done |
 | Sounds, celebrations, animations (`js/fx.js` shared copy + `js/fxgame.js` director), "Sound & effects" in Settings | done v10; `tests/fx.test.mjs`; fx.js 1.0.3 re-copied v11 |
 | Real-table look (v11): wood table (`css/table.css` + `js/table.js`, shared kit copies), target grid = upright plastic lid with a peg hole per square, ocean grid = flat base leaning away (CSS 3-D), ships with deck peg holes, real-looking pegs, peg tray that runs down as pegs are used, opponent name plate on the back of their lid; laptop = case in the middle (lid above, base in front) + slim side panel | done v11 |
+| Edge pass (v12, 2026-10-20): 50 weird scenarios tested, 11 failed, all fixed (table below) | done v12; `tests/edge.test.js` |
+
+### Edge pass v12 (2026-10-20)
+Scripts live in the session scratchpad (`edge/battleship/`: taps.mjs, layout.mjs, online.mjs, scenarios.md); only `tests/edge.test.js` is in the repo.
+| Scenario | Before | Fix |
+|---|---|---|
+| Fleet tally at 320/393/landscape/200% zoom | text overlapped | phone shows hit count; ship name hidden once hit |
+| Heatmap switch at 320×568 and 320×460 | off screen | tighter info column under 380 px |
+| Laptop WebKit (no 3-D lean drawn): base over "Your fleet" | overlapped | base sized to its row (`min(100cqw,126cqh)`) |
+| Online Leave at 320 px | under tab bar | smaller, no-wrap row under 380 px |
+| Emoji online name | cut mid-emoji | cut by code point (`shortName`) |
+| Opponent leaves online | silent | toast "<name> left. A computer plays on for them." |
+| Online Fire double tap | 2 moves sent | `P.sending` guard |
+| Paper: all ships sunk | still offered ship buttons | "All N ships sunk in X shots" + Undo/New game |
+| Paper: answers no fleet can fit | no reason shown | red line "X, Y can't fit anywhere. Check your calls." (`D.unfittable`) |
+| Heat colour left after last sinking (WebKit) | 3 cells | paint sets `transparent` explicitly |
+| Engine: salvo ends mid-list, bad moves, 3,000 no-touch fleets | already passed | locked in by tests |
+Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, New game in the 900 ms before the sheet, Back with sheets, Settings mid-turn, rules change mid-battle, reload mid-turn, storage blocked, two tabs, resize, longest/shortest games, Lab empty/left mid-test, long log.
 
 ### Event → sound map (js/fxgame.js + app.mjs)
 | Event | Sound / effect |
@@ -46,6 +64,7 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - FX (2026-10-20): "add opptional sounds you can add to the games that reflect what's happening in the game accurately as well as win celebrations, and other fun annimations to go along with everything. Just make sure everything is customizable in the settings so the user can play as preffered."
 - Table look (2026-10-20): "make sure that each of the games also have a look to them so that the game (either board or card layout) looks almost identical to how the board or card layout looks like in real life … It should look kind of like you're looking through a camera that is connected to a user's glasses that is playing in real life (not actually, but the layout and style of everything should be similar)."
 - Newest: "add risk, clue, battleship, connect four, stratego, clue, checkers, pandemic, splendor, king of tokyo, 7 wonders, and evolution to the list of games."
+- Edge pass (2026-10-20): "I've noticed the games often have good user interfaces but could be improved especially when a scenario happens that the game might've not really thought about or whatnot. Could you focus on making each game perfect especially in scenarios that the game doesn't expect or are a little weird."
 - Money $0; no copyrighted art or rulebook text; never write in a `.claude` folder.
 
 ## Traps
@@ -62,6 +81,9 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - `css/table.css` + `js/table.js` are verbatim copies of `Board and Card Games/_table/`; never edit here. table.css loads BEFORE style.css (its `.tbl-surface {position:relative}` must lose to `.tab {position:absolute}`).
 - Headless WebKit on Windows does not draw CSS 3-D perspective: the ocean grid looks flat there; Chrome (and iOS Safari) show it leaning away. Check the tilt with `--engine chrome`.
 - Some screenshot runs on this laptop wrote 0-byte PNGs for one whole mode; check file sizes before trusting a set.
+- Headless WebKit on Windows draws the ocean base's rotateX as a flat squash (×0.788, no perspective); layout must be right without the lean (base sized `126cqh` on laptop fits both engines).
+- Heat cells: set `backgroundColor = "transparent"`, never `""` (WebKit kept the old colour). Tests that look for heat colour must ignore "transparent".
+- `.gitattributes` marks `js/fx.js`, `js/table.js`, `css/table.css` `-text` so the shared copies stay byte-identical.
 - Computer / pass-the-phone games are saved in localStorage `battleship:v1` → `local` during firing and resumed on load (`game.setup` with `options.resume`).
 
 ## Decisions
@@ -76,6 +98,7 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - Browser Back goes to the previous tab (79be9f1), not off the page.
 - FX v10: your hits `explosion`, hits on your fleet a duller `hit` thud (so you can tell by ear); no extra "your turn" pulse (the existing blue board glow does it); grid cells skip the automatic button tap (aiming has its own `click`).
 - Table look v11: dark wood table; grey plastic case; your ships are placed on the big board drawn as the ocean base (real game: ships go in the base), then the big board is the upright target lid; sunk enemy ships on the lid are a faint outline under the red pegs; peg tray = 84 white + 42 red per case, shown in proportion; opponent name plate hidden under 380 px (tally needs the room); heatmap colours and selection rings kept as they were (helpers, Tim's v9 look).
+- Edge pass v12 (Tim didn't pick these, plainest matching choice): phone tally drops the ship name once hit (count only); paper "can't fit" and "All N sunk" lines; leave toast wording; laptop base 1.26× its row height; smaller Leave button on phones.
 - Design pass v9: heatmap amber→red with the faintest cells left clear; target board glows blue on your shot; status is a pill; Fire is neutral until a square is picked; small controls get invisible 40px hit areas; Lab/Rules/Settings show the Play status (not Paper's); tray ship icons on laptop only (phone tray stays one row).
 
 ## NOT verified
@@ -86,4 +109,5 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 - Firestore logs "access control checks" errors in Safari when a page reloads/leaves mid-request (inside online.js/Firebase; harmless). online.js marks empty seats `online:true` (worked around in our lobby; reported, not edited).
 - Sounds never heard: headless WebKit on Windows has no Web Audio. Sound calls verified by spying `FX.play` in the browser and by node tests with a fake AudioContext; real loudness/feel on iPhone untested. Shake/stars/confetti seen only in headless screenshots (low frame rate). Online FX not run with two browsers (same code path as local: snapshot diff).
 - Table look v11: the ocean grid's 3-D lean seen only in headless Chrome, not in WebKit/iOS. No real iPhone look. Pegs/tray/lid are original CSS/SVG.
+- Edge pass v12: opponent-leave toast and double-Fire guard checked with fake online snapshots, not two real browsers; no real iPhone; a browser that draws no transform at all would still be fine for layout but untested.
 - "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).

@@ -3,7 +3,7 @@
   "private": true,
   "description": "Battleship: play vs measured computers or online, live heatmap, paper companion and lab. Static site, no dependencies.",
   "scripts": {
-    "test": "node tests/engine.test.js && node tests/online.test.mjs && node tests/fx.test.mjs",
+    "test": "node tests/engine.test.js && node tests/online.test.mjs && node tests/fx.test.mjs && node tests/edge.test.js",
     "lab": "node tools/lab-data.js 0.4"
   }
 }

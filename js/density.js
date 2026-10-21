@@ -147,6 +147,17 @@
   /** Expected ship squares left per the map (sum of chances) — a sanity number. */
   function mass(h) { return h.p.reduce(function (a, b) { return a + b; }, 0); }
 
-  var api = { knowledge: knowledge, blank: blank, heat: heat, topK: topK, mass: mass, deadCells: deadCells, namedCandidates: namedCandidates };
+  /** Ids of ships still afloat that have no legal spot left (the answers entered can't all be true). */
+  function unfittable(K) {
+    var sunk = {};
+    K.sunk.forEach(function (id) { sunk[id] = 1; });
+    return K.fleet.filter(function (ship) {
+      if (sunk[ship.id]) return false;
+      if (K.named) return !namedCandidates(K, ship).length;
+      return !E.placements(ship.len).some(function (pl) { return pl.every(function (c) { return K.cell[c] !== 1; }); });
+    }).map(function (s) { return s.id; });
+  }
+
+  var api = { knowledge: knowledge, blank: blank, heat: heat, topK: topK, mass: mass, deadCells: deadCells, namedCandidates: namedCandidates, unfittable: unfittable };
   if (node) module.exports = api; else root.BSDensity = api;
 })(this);

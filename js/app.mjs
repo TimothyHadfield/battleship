@@ -1,11 +1,11 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js?v=11";
-import { makeGame } from "./game.mjs?v=11";
+import { createLocal, createOnline } from "./online.js?v=12";
+import { makeGame } from "./game.mjs?v=12";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.12";
+const VERSION = "2026-10-20.13";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
@@ -106,7 +106,8 @@ function paint(G, o) {
       G.st[c] = s;
     }
     const hp = !s && o.heat ? o.heat.p[c] : 0;
-    b.style.backgroundColor = hp ? heatBg(hp, max) : "";
+    // "transparent", not "": WebKit kept the old heat colour forever when the inline colour was removed mid-transition
+    b.style.backgroundColor = (hp && heatBg(hp, max)) || "transparent";
     b.classList.toggle("open", !s);
     b.classList.toggle("sel", sel.has(c));
     b.classList.toggle("best", o.best === c && !s);
@@ -198,7 +199,7 @@ function stopLocal() {
 function startNew(mode) {
   stopLocal();
   if (store.local) { delete store.local; save(); }
-  P.mode = mode; P.snapKey = null; P.view = 0; P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.cover = null; P.lastMsg = null;
+  P.mode = mode; P.snapKey = null; P.view = 0; P.sending = false; P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.cover = null; P.lastMsg = null;
   resetGrid(big); resetGrid(small); fxd.reset();
   newPlacing(0);
   closeSheet();
@@ -212,11 +213,18 @@ function curSnap() {
   if (P.mode === "pass" && P.room && P.room.mode === "local") return P.room.view(P.view);
   return P.snap;
 }
+// names over 12 characters are cut with "…"; counted in whole characters so an emoji is never cut in half.
+// A player who left is replaced by a computer named "<name> (computer)": the name is cut, the tag kept.
+function shortName(n) {
+  const tag = / \(computer\)$/.test(n) ? " (computer)" : "";
+  const ch = Array.from(tag ? n.slice(0, -tag.length) : n);
+  return (ch.length > 12 ? ch.slice(0, 11).join("") + "…" : ch.join("")) + tag;
+}
 const nameOf = (seat) => {
   const sn = P.snap;
   if (P.mode === "computer") return seat === 0 ? "You" : AI.NAMES[(sn && sn.pub && sn.pub.levels[1]) || S.level];
   if (P.mode === "online" && sn && seat === sn.mySeat) return "You";
-  if (sn && sn.seats && sn.seats[seat]) { const n = sn.seats[seat].name || "Player " + (seat + 1); return n.length > 12 ? n.slice(0, 11) + "…" : n; }
+  if (sn && sn.seats && sn.seats[seat]) return shortName(sn.seats[seat].name || "Player " + (seat + 1));
   return "Player " + (seat + 1);
 };
 
@@ -226,6 +234,11 @@ function onSnap(snap) {
     const key = JSON.stringify(snap);
     if (key === P.snapKey) return;
     P.snapKey = key;
+    // the other player left mid-game: online.js hands their seat to a computer; say so instead of switching silently
+    const was = P.snap && P.snap.seats;
+    if (was && snap.status === "playing" && snap.seats) snap.seats.forEach((s, i) => {
+      if (i !== snap.mySeat && was[i] && was[i].kind === "human" && s.kind === "computer") toast(`${shortName(was[i].name || "Player " + (i + 1))} left. A computer plays on for them.`);
+    });
   }
   P.snap = snap;
   if (P.mode === "online") {
@@ -489,7 +502,13 @@ function pegTray(pub, my) {
 // ---------------- battle
 function fleetChips(pub, board) {
   const hits = (id) => pub.shots[board].filter((x) => x.s === id).length;
-  return `<div class="fleet">${pub.fleet.map((s) => { const sunk = pub.sunk[board].includes(s.id), h = hits(s.id); return `<div class="fchip${sunk ? " sunk" : ""}" title="${esc(s.name)}">${Art.shipIcon(s.id, s.len)}<span>${esc(s.short)}${!sunk && h ? ` <b class="hitn">${h}/${s.len}</b>` : ""}</span></div>`; }).join("")}</div>`;
+  return `<div class="fleet">${pub.fleet.map((s) => tallyChip(s, pub.sunk[board].includes(s.id), hits(s.id))).join("")}</div>`;
+}
+// one ship in the tally: icon, name, hits so far. On a phone a hit ship shows its count under the icon instead of
+// its name (the icon says which ship), so five counts fit on a 320px lid without running into each other.
+function tallyChip(s, sunk, h) {
+  const n = !sunk && h ? h : 0;
+  return `<div class="fchip${sunk ? " sunk" : ""}${n ? " hashit" : ""}" title="${esc(s.name)}">${Art.shipIcon(s.id, s.len)}<span><i class="nm">${esc(s.short)}</i>${n ? ` <b class="hitn">${n}/${s.len}</b>` : ""}</span></div>`;
 }
 function renderBattle(sn) {
   big.el.classList.remove("placing"); $("#tab-play").classList.remove("placing");
@@ -583,15 +602,19 @@ function heatNow() {
 }
 async function fire() {
   const sn = curSnap(); const pub = sn.pub, need = pub.need || 1;
-  if (P.sel.length !== need) return;
+  if (P.sel.length !== need || (P.mode === "online" && P.sending)) return;
   const { K, h } = heatNow();
   const got = P.sel.reduce((a, c) => a + h.p[c], 0);
   const best = need > 1 ? D.topK(K, need).reduce((a, c) => a + h.p[c], 0) : h.max;
   P.study.push({ got, best, n: need });
   const a = { t: "fire", cells: P.sel.slice() };
   P.sel = [];
-  if (P.mode === "online") { const r = await P.room.act(a); if (!r.ok) toast(r.message || "Move not sent."); }
-  else P.room.act(a, me());
+  if (P.mode === "online") {
+    // one move on the wire at a time: a second Fire while the first is still sending would be refused as "not your turn"
+    P.sending = true;
+    try { const r = await P.room.act(a); if (!r.ok) toast(r.message || "Move not sent."); }
+    finally { P.sending = false; }
+  } else P.room.act(a, me());
 }
 
 $("#bigGrid").addEventListener("click", (ev) => {
@@ -692,7 +715,7 @@ async function openOnline() {
   const room = createOnline({ game, gameId: "battleship", botDelayMs: 800 });
   room.on("change", (snap) => { if (P.online === room) onSnap(snap); });
   room.on("error", (m) => toast(m));
-  P.online = room; P.room = room; P.mode = "online"; P.snapKey = null;
+  P.online = room; P.room = room; P.mode = "online"; P.snapKey = null; P.sending = false;
   P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.placing = null;
   resetGrid(big); resetGrid(small); fxd.reset();
   return room;
@@ -782,12 +805,23 @@ function renderPaper() {
   });
   paint(paperGrid, { state: K.cell, heat: S.heat ? h : null, best: h.best, sel: paperSel >= 0 ? [paperSel] : [], ships: wrecks, firing: true, pctText: S.heat && !isMobile() });
   const hitsOf = (id) => pp.shots.filter((x) => x.s === id).length;
-  $("#ppbar").innerHTML = `<div class="fleet">${fleet.map((s) => `<div class="fchip${K.sunk.includes(s.id) ? " sunk" : ""}">${Art.shipIcon(s.id, s.len)}<span>${esc(s.short)}${pp.opts.named && !K.sunk.includes(s.id) && hitsOf(s.id) ? " " + hitsOf(s.id) + "/" + s.len : ""}</span></div>`).join("")}</div><span style="white-space:nowrap">Shots <b>${pp.shots.length}</b></span>`;
+  $("#ppbar").innerHTML = `<div class="fleet">${fleet.map((s) => tallyChip(s, K.sunk.includes(s.id), pp.opts.named ? hitsOf(s.id) : 0)).join("")}</div><span style="white-space:nowrap">Shots <b>${pp.shots.length}</b></span>`;
   $("#status").innerHTML = "Paper game " + qBtn("paper");
   const pin = $("#pinfo");
+  const allSunk = K.sunk.length >= fleet.length;
+  // answers that leave a ship nowhere to sit can't all be true: say so instead of a map that quietly ignores that ship
+  const lost = allSunk ? [] : D.unfittable(K).map((id) => fleet.find((s) => s.id === id).name);
+  const lostHtml = lost.length ? `<div class="msg hit" style="font-size:13px;white-space:normal">${esc(lost.join(", "))} can't fit anywhere. Check your calls.</div>` : "";
+  if (allSunk) {
+    // the game on the table is over: no more answers to enter
+    paperSel = -1;
+    pin.innerHTML = `<div class="msg sunk">All ${fleet.length} ships sunk in ${pp.shots.length} shots</div>
+      <div class="row"><button class="btn small" data-pp="undo">Undo</button><button class="btn small" data-pp="new">${paperConfirm ? "Sure? Tap again" : "New game"}</button></div>`;
+    return;
+  }
   if (paperSel < 0) {
     pin.innerHTML = `<div class="aim"><span class="of">Best shot</span><span class="cellname">${h.best >= 0 ? LABEL(h.best) : "-"}</span><span class="chance" style="color:var(--good)">${h.best >= 0 ? pct(h.max) : ""}</span>${qBtn("chance")}</div>
-      <div class="muted" style="font-size:13px">Tap the square you called, then the answer you got.</div>
+      ${lostHtml || `<div class="muted" style="font-size:13px">Tap the square you called, then the answer you got.</div>`}
       <div class="row"><button class="btn small" data-pp="undo" ${pp.shots.length ? "" : "disabled"}>Undo</button><button class="btn small" data-pp="new">${paperConfirm ? "Sure? Tap again" : "New game"}</button><span class="tog" style="margin-left:auto">${switchHtml("heat", S.heat)} Heatmap</span></div>
       <div class="muted" style="font-size:12px">${esc(fleet.map((s) => s.name).join(", "))}${pp.opts.named ? "" : " · hits not named"}${pp.opts.noTouch ? " · no touching" : ""}</div>`;
     return;
@@ -802,6 +836,7 @@ function renderPaper() {
 }
 $("#paperGrid").addEventListener("click", (ev) => {
   const b = ev.target.closest(".cell"); if (!b) return;
+  if (paperK().sunk.length >= E.FLEETS[store.paper.opts.edition].length) return void FX.play("error"); // all sunk: nothing left to answer
   paperSel = +b.dataset.c; paperConfirm = false; renderPaper();
 });
 $("#pinfo").addEventListener("click", (ev) => {
@@ -974,4 +1009,4 @@ if (resumed) {
 } else if (!resumeLocal()) startNew(S.opp === "pass" ? "pass" : "computer");
 const start = (location.hash || "").slice(1);
 showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play", "replace");
-window.BSApp = { P, S, version: VERSION };
+window.BSApp = { P, S, version: VERSION, shortName, onSnap }; // onSnap + shortName: used by the edge-case browser checks

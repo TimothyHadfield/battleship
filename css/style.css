@@ -398,3 +398,18 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
   .aim .chance { font-size: 13px; white-space: nowrap; }
   .aim .of { min-width: 0; font-size: 11px; white-space: nowrap; }
 }
+
+/* ---------- edge pass (2026-10-20) ---------- */
+/* fleet tally: a chip never runs into its neighbour; on a phone a hit ship shows its count instead of its name */
+.fchip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.fchip .nm { font-style: normal; }
+@media (max-width: 899px) { .fchip.hashit .nm { display: none; } }
+/* laptop: WebKit draws the 38deg lean without perspective (the base is only squashed to cos 38 = 0.79 of its height),
+   so the base may be at most 1/0.79 = 1.27x its row; 1.26x fills the row there and leaves a little room in Chrome/Safari 3-D */
+@media (min-width: 900px) { #tab-play #smallGrid { width: min(100cqw, 126cqh); height: min(100cqw, 126cqh); } }
+/* 320px phones: Best, Fire and the Heatmap switch all fit above the tab bar */
+@media (max-width: 379px) { .info { gap: 4px; } .aim { min-height: 30px; } .msg { min-height: 18px; } }
+/* online on a phone: Leave shares the Heatmap row; keep that row the switch's height so it stays above the tab bar */
+@media (max-width: 899px) { #info .row .btn.small[data-act=leave] { height: 24px; padding: 0 9px; font-size: 12px; } }
+/* very narrow phones: keep Leave on the Heatmap row instead of wrapping under the tab bar */
+@media (max-width: 379px) { #info .row:has(> [data-act=leave]) { flex-wrap: nowrap; gap: 4px; } #info .row:has(> [data-act=leave]) .tog { gap: 4px; min-width: 0; } #info .row .btn.small[data-act=leave] { padding: 0 7px; flex: none; } }
