@@ -413,3 +413,44 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
 @media (max-width: 899px) { #info .row .btn.small[data-act=leave] { height: 24px; padding: 0 9px; font-size: 12px; } }
 /* very narrow phones: keep Leave on the Heatmap row instead of wrapping under the tab bar */
 @media (max-width: 379px) { #info .row:has(> [data-act=leave]) { flex-wrap: nowrap; gap: 4px; } #info .row:has(> [data-act=leave]) .tog { gap: 4px; min-width: 0; } #info .row .btn.small[data-act=leave] { padding: 0 7px; flex: none; } }
+
+/* ---------- visibility pass (2026-10-21): the boards as big as the screen allows ---------- */
+/* tap your fleet to see it as big as the lid; tap again to put it back */
+#mineBox { cursor: zoom-in; }
+#tab-play.placing #mineBox { cursor: default; }
+#tab-play.placing .minehead::after { content: none; }
+.minehead::after { content: " \2922"; opacity: .7; font-weight: 700; }
+#tab-play.mine-zoom .mine { position: absolute; grid-column: auto; grid-row: auto; z-index: 25; cursor: zoom-out; display: flex; flex-direction: column; align-items: stretch; padding: 6px 8px 4px;
+  background-color: var(--tbl-base); background-image: radial-gradient(ellipse 120% 95% at 50% 42%, transparent 52%, var(--tbl-vig) 100%), var(--tbl-tex); background-size: 100% 100%, var(--tbl-tex-size);
+  box-shadow: 0 8px 24px rgba(0,0,0,.55); }
+/* the fleet box leaves its grid cell while it is big: pin the helpers to their own column so nothing moves */
+@media (max-width: 899px) { #tab-play .info { grid-column: 2; grid-row: 1; } #tab-play.placing .info { grid-column: 1; } }
+#tab-play.mine-zoom .minehead { flex: 0 0 auto; height: auto; font-size: 15px; line-height: 30px; text-align: center; }
+#tab-play.mine-zoom .minehead::after { content: "  \2715"; }
+#tab-play.mine-zoom .gwrap.small { flex: 1 1 auto; width: 100%; height: auto; min-height: 0; aspect-ratio: auto; align-items: center; perspective: none; }
+#tab-play.mine-zoom #smallGrid { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); transform: none; --lab: 16px; --rim: 5px; border-radius: 9px; }
+#tab-play.mine-zoom #smallGrid .cols, #tab-play.mine-zoom #smallGrid .rows { font-size: 10px; }
+#tab-play.mine-zoom .pegtray { display: none; }
+/* heat numbers on the laptop lid grow with the squares (they were 9 px on 40-70 px squares) */
+@media (min-width: 900px) {
+  #tab-play.mine-zoom #smallGrid { --lab: 20px; }
+  #tab-play.mine-zoom #smallGrid .cols, #tab-play.mine-zoom #smallGrid .rows { font-size: 12px; }
+  .grid.big .cell .pct { font-size: max(9px, calc(min(100cqw, 100cqh) * .021)); }
+  .grid.big .cell.best .pct, .grid.big .cell.sel .pct { font-size: max(11px, calc(min(100cqw, 100cqh) * .025)); }
+  /* laptop: the lid fills the table's height; your base lies on the table beside it, in the room the lid leaves;
+     helpers stay in the side panel. Base column = what is left after the lid (lid ~ tab height - 82 px). */
+  #tab-play { grid-template-columns: minmax(0, 1fr) clamp(220px, calc(100% - 208px - 100dvh), 420px) 340px; grid-template-rows: auto minmax(0, 1fr); }
+  #tab-play::before { grid-column: 3; grid-row: 1 / 3; }
+  #tab-play .playmain { grid-column: 1; grid-row: 1 / 3; }
+  #tab-play .mine { grid-column: 2; grid-row: 1 / 3; justify-content: flex-end; padding: 0 12px 14px 0; }
+  #tab-play .gwrap.small { flex: 0 0 auto; width: 100%; height: auto; aspect-ratio: 5 / 4; } /* the base leans back to ~0.79 of its height, so its box is wider than tall */
+  #tab-play #smallGrid { width: min(100cqw, 126cqh); height: min(100cqw, 126cqh); }
+  #tab-play .pegtray { width: min(300px, 90%); }
+  #tab-play .info { grid-column: 3; grid-row: 1; }
+  #tab-play .logbox { grid-column: 3; grid-row: 2; }
+}
+/* sideways phone: the lid column is only as wide as the lid; the rest goes to your fleet */
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 999px) {
+  #tab-play .playmain, #tab-paper .playmain { flex: 0 0 min(calc(100dvh - 104px), 60%); }
+  .pside { flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) 180px; }
+}

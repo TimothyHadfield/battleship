@@ -33,3 +33,9 @@
 - **Asked:** Tim: "review them again for design improvements especially visually". Polish only; no rule or behaviour changes.
 - **Built:** fleet tally icons 10→13 px (18 desktop); sub/ship hulls lighter with a sheen; heatmap amber→red, faint cells clear; blue glow on the target board on your shot; status pill; Fire neutral until armed; win green / loss red sheet title; invisible 40 px hit areas on ?, switches, small/seg/tray buttons; bigger desktop pegs; desktop heat numbers dimmed except best/selected; tray ship icons (laptop); Lab chart height capped; status no longer stuck on "Paper game" in Lab/Rules/Settings.
 - **Verified:** npm test 14 + 5; scratchpad `bs-design.mjs` full games phone (WebKit 393×659) + desktop 1280×800, every tab, before/after screenshots, no console errors, no overflow.
+
+## 2026-10-21 — visibility pass (v13)
+- **Asked:** Tim: boards "too small to easily see what's going on … Consider parts of the board that are dense". Brief: audit every play screen at 393/320/landscape/1280/1440, fix, reviewer pass.
+- **Found:** laptop lid only 19-20% of the screen (half its column empty wood); your fleet base tiny everywhere (phone squares 11 px, pegs 4.7 px, labels 7 px; laptop 18 px); sideways phone base 10.5 px with an empty band; laptop heat numbers 9 px.
+- **Built:** laptop lid fills the table height with the base beside it; tap "Your fleet" to see it as big as the lid; sideways phone lid column fits the lid, base gets the rest; heat numbers scale; v13.
+- **Verified:** scratchpad `vis/battleship/check.mjs` 16 fails on v12 → 0 on v13 in WebKit and Chrome (5 sizes × 5 states + zoom); edge layout 28/28 WebKit + Chromium, taps 29/29; `npm test` green; one read-only reviewer pass.

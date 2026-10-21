@@ -1,7 +1,7 @@
 # Battleship — progress
 
 ## START HERE
-Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-20.
+Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-21.
 Live: https://timothyhadfield.github.io/battleship/ · repo https://github.com/TimothyHadfield/battleship
 
 ## Goal right now
@@ -21,6 +21,7 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 | Sounds, celebrations, animations (`js/fx.js` shared copy + `js/fxgame.js` director), "Sound & effects" in Settings | done v10; `tests/fx.test.mjs`; fx.js 1.0.3 re-copied v11 |
 | Real-table look (v11): wood table (`css/table.css` + `js/table.js`, shared kit copies), target grid = upright plastic lid with a peg hole per square, ocean grid = flat base leaning away (CSS 3-D), ships with deck peg holes, real-looking pegs, peg tray that runs down as pegs are used, opponent name plate on the back of their lid; laptop = case in the middle (lid above, base in front) + slim side panel | done v11 |
 | Edge pass (v12, 2026-10-20): 50 weird scenarios tested, 11 failed, all fixed (table below) | done v12; `tests/edge.test.js` |
+| Visibility pass (v13, 2026-10-21): laptop lid fills the table height (444→632 px at 1280×800, 514→732 at 1440), your base sits beside it (squares 18→24 px), tap "Your fleet ⤢" to see it as big as the lid (phone squares 11→33 px, pegs 4.7→14 px), sideways phone base 10.5→14.6 px, laptop heat numbers 9→13-15 px | done v13 |
 
 ### Edge pass v12 (2026-10-20)
 Scripts live in the session scratchpad (`edge/battleship/`: taps.mjs, layout.mjs, online.mjs, scenarios.md); only `tests/edge.test.js` is in the repo.
@@ -65,6 +66,7 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Table look (2026-10-20): "make sure that each of the games also have a look to them so that the game (either board or card layout) looks almost identical to how the board or card layout looks like in real life … It should look kind of like you're looking through a camera that is connected to a user's glasses that is playing in real life (not actually, but the layout and style of everything should be similar)."
 - Newest: "add risk, clue, battleship, connect four, stratego, clue, checkers, pandemic, splendor, king of tokyo, 7 wonders, and evolution to the list of games."
 - Edge pass (2026-10-20): "I've noticed the games often have good user interfaces but could be improved especially when a scenario happens that the game might've not really thought about or whatnot. Could you focus on making each game perfect especially in scenarios that the game doesn't expect or are a little weird."
+- Visibility (2026-10-21): "for a lot of the games the cards or board layout is too small to easily see what's going on. … Fix this so the view of what's happening and where everything is is very clear. Consider parts of the board that are dense in what's happening and if the user can reasonably see it."
 - Money $0; no copyrighted art or rulebook text; never write in a `.claude` folder.
 
 ## Traps
@@ -84,6 +86,8 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Headless WebKit on Windows draws the ocean base's rotateX as a flat squash (×0.788, no perspective); layout must be right without the lean (base sized `126cqh` on laptop fits both engines).
 - Heat cells: set `backgroundColor = "transparent"`, never `""` (WebKit kept the old colour). Tests that look for heat colour must ignore "transparent".
 - `.gitattributes` marks `js/fx.js`, `js/table.js`, `css/table.css` `-text` so the shared copies stay byte-identical.
+- Fleet zoom (`mineZoom` in app.mjs): `#mineBox` goes `position:absolute` over `.playmain`. On laptop `.mine` is a grid item, so the zoom rule must reset `grid-column/row: auto` (else its containing block is its own grid column and it lands off screen). On phone `.info` is pinned to grid column 2 so nothing moves when the box leaves the grid. Don't put a CSS fade on it (headless WebKit left it at opacity 0).
+- Laptop base column width = `calc(100% - 208px - 100dvh)` (what the lid leaves); change it if the top bar, tab bar or lid padding changes height.
 - Computer / pass-the-phone games are saved in localStorage `battleship:v1` → `local` during firing and resumed on load (`game.setup` with `options.resume`).
 
 ## Decisions
@@ -99,6 +103,7 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - FX v10: your hits `explosion`, hits on your fleet a duller `hit` thud (so you can tell by ear); no extra "your turn" pulse (the existing blue board glow does it); grid cells skip the automatic button tap (aiming has its own `click`).
 - Table look v11: dark wood table; grey plastic case; your ships are placed on the big board drawn as the ocean base (real game: ships go in the base), then the big board is the upright target lid; sunk enemy ships on the lid are a faint outline under the red pegs; peg tray = 84 white + 42 red per case, shown in proportion; opponent name plate hidden under 380 px (tally needs the room); heatmap colours and selection rings kept as they were (helpers, Tim's v9 look).
 - Edge pass v12 (Tim didn't pick these, plainest matching choice): phone tally drops the ship name once hit (count only); paper "can't fit" and "All N sunk" lines; leave toast wording; laptop base 1.26× its row height; smaller Leave button on phones.
+- Visibility v13 (Tim didn't pick these, plainest matching choice): laptop base moved from under the lid to beside it; tap-to-enlarge your fleet (⤢ after "Your fleet", ✕ while big; closes on tap, resize, tab change, new game, pass-the-phone cover); laptop heat numbers scale with the squares (still dimmed); sideways phone lid column only as wide as the lid.
 - Design pass v9: heatmap amber→red with the faintest cells left clear; target board glows blue on your shot; status is a pill; Fire is neutral until a square is picked; small controls get invisible 40px hit areas; Lab/Rules/Settings show the Play status (not Paper's); tray ship icons on laptop only (phone tray stays one row).
 
 ## NOT verified
@@ -110,4 +115,5 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Sounds never heard: headless WebKit on Windows has no Web Audio. Sound calls verified by spying `FX.play` in the browser and by node tests with a fake AudioContext; real loudness/feel on iPhone untested. Shake/stars/confetti seen only in headless screenshots (low frame rate). Online FX not run with two browsers (same code path as local: snapshot diff).
 - Table look v11: the ocean grid's 3-D lean seen only in headless Chrome, not in WebKit/iOS. No real iPhone look. Pegs/tray/lid are original CSS/SVG.
 - Edge pass v12: opponent-leave toast and double-Fire guard checked with fake online snapshots, not two real browsers; no real iPhone; a browser that draws no transform at all would still be fine for layout but untested.
+- Visibility v13: headless WebKit + Chrome only (393, 320, 659×393, 1280, 1440); tap-to-enlarge not tried on a real iPhone. In Chrome/iOS the laptop base's 3-D lean leaves a gap under "Your fleet" and shrinks its far rows. Scripts: session scratchpad `vis/battleship/` (shoot.mjs, check.mjs).
 - "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).

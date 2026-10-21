@@ -1,11 +1,11 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js?v=12";
-import { makeGame } from "./game.mjs?v=12";
+import { createLocal, createOnline } from "./online.js?v=13";
+import { makeGame } from "./game.mjs?v=13";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-20.13";
+const VERSION = "2026-10-21.14";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
@@ -149,6 +149,7 @@ function showTab(t, how = "push") {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
   document.querySelectorAll(".tab").forEach((s) => (s.hidden = s.id !== "tab-" + t));
   $("#tip").hidden = true;
+  if (t !== "play" && typeof mineZoom === "function") mineZoom(false);
   if (t === "play") renderPlay();
   if (t === "paper") renderPaper();
   if (t === "lab") renderLab();
@@ -168,6 +169,20 @@ addEventListener("popstate", (e) => {
 
 // ================================================================== PLAY
 const big = buildGrid($("#bigGrid")), small = buildGrid($("#smallGrid"));
+// Tap your fleet to see it as big as the lid (it is the busiest board late in a game); tap again to put it back.
+// Only the fleet box moves (it lies over the lid); nothing under it shifts.
+function mineZoom(on) {
+  const tabEl = $("#tab-play"), box = $("#mineBox");
+  on = !!on && !tabEl.classList.contains("placing") && !tabEl.hidden;
+  if (on) {
+    const t = tabEl.getBoundingClientRect(), r = $(".playmain", tabEl).getBoundingClientRect();
+    box.style.cssText = `left:${r.left - t.left}px;top:${r.top - t.top}px;width:${r.width}px;height:${r.height}px`;
+  } else box.style.cssText = "";
+  tabEl.classList.toggle("mine-zoom", on);
+  box.setAttribute("aria-expanded", on);
+}
+$("#mineBox").setAttribute("role", "button");
+$("#mineBox").addEventListener("click", () => { mineZoom(!$("#tab-play").classList.contains("mine-zoom")); });
 // shots on board b (at seat b's fleet) are drawn on the big grid when b is the opponent
 const fxd = BSFx.director(FX, {
   grid: (b) => (b === me() ? small : big).sea,
@@ -307,6 +322,7 @@ function resumeLocal() {
 
 function showCover(seat, placing) {
   P.cover = seat;
+  mineZoom(false); // the next player never finds the last one's fleet blown up
   const el = $("#cover");
   el.innerHTML = `<div class="big">Pass to ${esc(nameOf(seat))}</div><div class="muted">${placing ? "Time to hide your fleet." : "Your turn to fire."} No peeking, ${esc(nameOf(1 - seat))}.</div><button class="btn primary" id="coverGo">I'm ${esc(nameOf(seat))}</button>`;
   el.hidden = false;
@@ -354,6 +370,7 @@ function oppLine() {
 function renderPlacing(sn) {
   if (!P.placing || (P.mode === "online" && sn && sn.pub && P.placing.fleet !== sn.pub.fleet && JSON.stringify(P.placing.fleet) !== JSON.stringify(sn.pub.fleet))) newPlacing(me());
   const pl = P.placing;
+  mineZoom(false);
   $("#tab-play").classList.add("placing");
   $("#status").innerHTML = P.mode === "pass" ? `<b>${esc(nameOf(P.view))}</b> hides a fleet` : "Hide your fleet";
   $("#pbar").innerHTML = `<span class="muted" style="white-space:nowrap">Place ships</span>` + oppLine();
@@ -1001,7 +1018,7 @@ document.addEventListener("click", (ev) => {
 
 // ================================================================== boot
 let resizeT = null;
-addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (tab === "play") { resetGrid(big); resetGrid(small); renderPlay(); } if (tab === "paper") { resetGrid(paperGrid); renderPaper(); } }, 150); });
+addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { mineZoom(false); if (tab === "play") { resetGrid(big); resetGrid(small); renderPlay(); } if (tab === "paper") { resetGrid(paperGrid); renderPaper(); } }, 150); });
 let resumed = false;
 try { const v = JSON.parse(localStorage.getItem("online.battleship")); resumed = !!(v && v.code); } catch (e) {}
 if (resumed) {
