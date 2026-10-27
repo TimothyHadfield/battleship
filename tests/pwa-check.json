@@ -1,0 +1,7 @@
+{
+  "repo": "battleship",
+  "ready": "!!(window.BSApp && document.querySelector('#bigGrid .cell'))",
+  "play": ["(async () => { const w = ms => new Promise(r => setTimeout(r, ms)); const S = () => BSApp.P.room && BSApp.P.room.state; const r = document.querySelector('[data-act=ready]'); if (r) r.click(); for (let i = 0; i < 100 && !(S() && S().phase === 'fire' && S().turn === 0); i++) await w(100); window.__shotsBefore = S().shots[1].length; document.querySelector('#bigGrid .cell.open').click(); await w(150); document.querySelector('[data-act=fire]').click(); })()"],
+  "played": "(() => { const s = BSApp.P.room && BSApp.P.room.state; return !!s && s.shots[1].length > window.__shotsBefore && s.shots[0].length >= 1 && s.phase === 'fire' && s.turn === 0; })()",
+  "safe": "document.querySelector('#tabs [data-tab=rules]').click()"
+}

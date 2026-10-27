@@ -1,11 +1,11 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js?v=13";
-import { makeGame } from "./game.mjs?v=13";
+import { createLocal, createOnline } from "./online.js?v=14";
+import { makeGame } from "./game.mjs?v=14";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-21.14";
+const VERSION = "2026-10-27.15";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
@@ -1026,4 +1026,16 @@ if (resumed) {
 } else if (!resumeLocal()) startNew(S.opp === "pass" ? "pass" : "computer");
 const start = (location.hash || "").slice(1);
 showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play", "replace");
+// Home-screen app (js/pwa.js, shared _pwa kit): a new build may reload the page by itself only when nothing
+// would be lost: not online, no sheet or pass-the-phone cover up, no text field in use, and either the game
+// is over or a saved computer / pass-the-phone game waits while you read Rules, Lab or Settings.
+// Any other time the kit shows "New version — tap to reload" instead.
+if (window.PWA) window.PWA.safeToReload = () => {
+  if (P.mode === "online" || P.online) return false;
+  if (!$("#sheet").hidden || !$("#cover").hidden || P.cover != null) return false;
+  const f = document.activeElement;
+  if (f && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)) return false;
+  const ph = P.room && P.room.state && P.room.state.phase;
+  return ph === "over" || (ph === "fire" && ["rules", "lab", "settings"].includes(tab));
+};
 window.BSApp = { P, S, version: VERSION, shortName, onSnap }; // onSnap + shortName: used by the edge-case browser checks
