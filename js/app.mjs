@@ -1028,7 +1028,8 @@ const start = (location.hash || "").slice(1);
 showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play", "replace");
 // Home-screen app (js/pwa.js, shared _pwa kit): a new build may reload the page by itself only when nothing
 // would be lost: not online, no sheet or pass-the-phone cover up, no text field in use, and either the game
-// is over or a saved computer / pass-the-phone game waits while you read Rules, Lab or Settings.
+// is over or a saved computer / pass-the-phone game waits while you read Rules or Settings (not Lab: its
+// simulations would be lost).
 // Any other time the kit shows "New version — tap to reload" instead.
 if (window.PWA) window.PWA.safeToReload = () => {
   if (P.mode === "online" || P.online) return false;
@@ -1036,6 +1037,6 @@ if (window.PWA) window.PWA.safeToReload = () => {
   const f = document.activeElement;
   if (f && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)) return false;
   const ph = P.room && P.room.state && P.room.state.phase;
-  return ph === "over" || (ph === "fire" && ["rules", "lab", "settings"].includes(tab));
+  return ph === "over" || (ph === "fire" && ["rules", "settings"].includes(tab));
 };
 window.BSApp = { P, S, version: VERSION, shortName, onSnap }; // onSnap + shortName: used by the edge-case browser checks

@@ -1,7 +1,7 @@
 # Battleship — progress
 
 ## START HERE
-Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-21.
+Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-27 (home-screen app v14).
 Live: https://timothyhadfield.github.io/battleship/ · repo https://github.com/TimothyHadfield/battleship
 
 ## Goal right now
@@ -21,6 +21,7 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 | Sounds, celebrations, animations (`js/fx.js` shared copy + `js/fxgame.js` director), "Sound & effects" in Settings | done v10; `tests/fx.test.mjs`; fx.js 1.0.3 re-copied v11 |
 | Real-table look (v11): wood table (`css/table.css` + `js/table.js`, shared kit copies), target grid = upright plastic lid with a peg hole per square, ocean grid = flat base leaning away (CSS 3-D), ships with deck peg holes, real-looking pegs, peg tray that runs down as pegs are used, opponent name plate on the back of their lid; laptop = case in the middle (lid above, base in front) + slim side panel | done v11 |
 | Edge pass (v12, 2026-10-20): 50 weird scenarios tested, 11 failed, all fixed (table below) | done v12; `tests/edge.test.js` |
+| Home-screen app + offline vs computer (v14, 2026-10-27, shared `_pwa` kit 1.1.0): manifest + icons, network-first service worker, "New version — tap to reload" | done v14; `npm run test:pwa` 3/16 before → 18/18 |
 | Visibility pass (v13, 2026-10-21): laptop lid fills the table height (444→632 px at 1280×800, 514→732 at 1440), your base sits beside it (squares 18→24 px), tap "Your fleet ⤢" to see it as big as the lid (phone squares 11→33 px, pegs 4.7→14 px), sideways phone base 10.5→14.6 px, laptop heat numbers 9→13-15 px | done v13 |
 
 ### Edge pass v12 (2026-10-20)
@@ -88,6 +89,7 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - `.gitattributes` marks `js/fx.js`, `js/table.js`, `css/table.css` `-text` so the shared copies stay byte-identical.
 - Fleet zoom (`mineZoom` in app.mjs): `#mineBox` goes `position:absolute` over `.playmain`. On laptop `.mine` is a grid item, so the zoom rule must reset `grid-column/row: auto` (else its containing block is its own grid column and it lands off screen). On phone `.info` is pinned to grid column 2 so nothing moves when the box leaves the grid. Don't put a CSS fade on it (headless WebKit left it at opacity 0).
 - Laptop base column width = `calc(100% - 208px - 100dvh)` (what the lid leaves); change it if the top bar, tab bar or lid padding changes height.
+- **Home-screen app / offline (v14, 2026-10-27):** `sw.js` + `js/pwa.js` + `tools/pwa-check.mjs` + `tools/make-icons.mjs` are verbatim copies of `Board and Card Games/_pwa` (repo game-pwa); never edit here. `pwa.js` loads (defer) just before `app.mjs`; its `data-version` = the `?v=` build, bump together. `PWA.safeToReload` is at the end of app.mjs: true only when not online, no sheet/cover, no focused field, and game over or a saved game while on Rules/Settings. Test: `npm run test:pwa` (~1 min, WebKit; `--engine chromium`). `tests/pwa-check.json` drives the play.
 - Computer / pass-the-phone games are saved in localStorage `battleship:v1` → `local` during firing and resumed on load (`game.setup` with `options.resume`).
 
 ## Decisions
@@ -116,4 +118,5 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Table look v11: the ocean grid's 3-D lean seen only in headless Chrome, not in WebKit/iOS. No real iPhone look. Pegs/tray/lid are original CSS/SVG.
 - Edge pass v12: opponent-leave toast and double-Fire guard checked with fake online snapshots, not two real browsers; no real iPhone; a browser that draws no transform at all would still be fine for layout but untested.
 - Visibility v13: headless WebKit + Chrome only (393, 320, 659×393, 1280, 1440); tap-to-enlarge not tried on a real iPhone. In Chrome/iOS the laptop base's 3-D lean leaves a gap under "Your fleet" and shrinks its far rows. Scripts: session scratchpad `vis/battleship/` (shoot.mjs, check.mjs).
+- Home-screen app v14: never added to a real iPhone home screen; offline + new-build pickup checked only in headless WebKit/Chromium against a Pages-like local server (and the live service worker in headless WebKit). The "New version — tap to reload" pill (dark, top centre) is the kit's plain look; Tim hasn't seen it.
 - "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).

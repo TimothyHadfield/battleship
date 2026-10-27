@@ -39,3 +39,9 @@
 - **Found:** laptop lid only 19-20% of the screen (half its column empty wood); your fleet base tiny everywhere (phone squares 11 px, pegs 4.7 px, labels 7 px; laptop 18 px); sideways phone base 10.5 px with an empty band; laptop heat numbers 9 px.
 - **Built:** laptop lid fills the table height with the base beside it; tap "Your fleet" to see it as big as the lid; sideways phone lid column fits the lid, base gets the rest; heat numbers scale; v13.
 - **Verified:** scratchpad `vis/battleship/check.mjs` 16 fails on v12 → 0 on v13 in WebKit and Chrome (5 sizes × 5 states + zoom); edge layout 28/28 WebKit + Chromium, taps 29/29; `npm test` green; one read-only reviewer pass.
+
+## 2026-10-27 — home-screen app + offline (v14, `_pwa` kit pilot, builder for the portfolio manager)
+- **Asked:** Tim: "start building every single improvement you can think of after your competitor analysis." Plan item 3: installable on the iPhone home screen + offline play vs computer, never a stale build.
+- **Built:** copied `sw.js`, `js/pwa.js`, `tools/pwa-check.mjs`, `tools/make-icons.mjs` from `_pwa` 1.1.0; `manifest.webmanifest`, `icons/` (192/512/maskable from icon.svg; apple-touch-icon kept); head tags; `PWA.safeToReload` in app.mjs; v14.
+- **Verified:** `npm run test:pwa` 3/16 on v13 → 18/18 on v14 (WebKit and Chromium 393×659): offline reload/cold open, a shot answered by the computer offline, weak signal opens in seconds, next open after a deploy shows it in one load, mid-game pill (no reload), safe-point auto-reload. `npm test` green.
+- **Open:** real iPhone home-screen app; Tim's look at the pill.
