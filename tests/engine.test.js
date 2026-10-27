@@ -165,5 +165,16 @@ function placed(opts) {
   }
   assert.ok(avg.easy > 90 && avg.medium < 70 && avg.medium > 55 && avg.hard < 48, JSON.stringify(avg));
   ok('strength order holds: Random ~95, Hunt & target ~63, Density ~44 shots (150 games each: ' + Object.values(avg).map((x) => x.toFixed(1)).join(' / ') + ')');
+
+  // Density must not be predictable: against an empty sea its first 20 shots used to come from the same
+  // 40 squares (two checkerboard patterns) every game, so a player could learn where it never looks early.
+  const rngP = mul(4242), firsts = new Set(), seq8 = new Set();
+  for (let g = 0; g < 200; g++) {
+    const K = D.blank(F, {}), s = [];
+    for (let i = 0; i < 20; i++) { const c = AI.choose('hard', K, 1, rngP)[0]; K.cell[c] = 1; K.shots.push({ c, h: 0, n: i + 1 }); s.push(c); firsts.add(c); }
+    seq8.add(s.slice(0, 8).join());
+  }
+  assert.ok(firsts.size >= 80 && seq8.size >= 190, `squares in first 20 shots: ${firsts.size}, distinct openings: ${seq8.size}/200`);
+  ok(`Density's opening varies: ${firsts.size} different squares in its first 20 shots, ${seq8.size}/200 different first-8 openings`);
 }
 console.log(pass + ' engine tests passed');

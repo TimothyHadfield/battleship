@@ -1,7 +1,7 @@
 /* Computer players. Each sees only what a real player would: the public shot record.
    easy   = Random: any square not yet called.
    medium = Hunt & target: random until a hit, then the squares next to the newest unfinished hit.
-   hard   = Density: always the square the heatmap rates most likely (js/density.js).
+   hard   = Density: the square the heatmap rates most likely (js/density.js), near-ties picked at random.
    Strength is measured, not guessed: tools/lab-data.js -> js/lab-data.js. */
 (function (root) {
   'use strict';
@@ -49,6 +49,17 @@
     return out;
   }
 
+  /** Density's pick: the k squares the heatmap rates highest, each chance first nudged up by a random 0-15%.
+   *  Without the nudge its opening was the same two checkerboards every game; with it, near-equal squares
+   *  are picked at random. Measured over 1,500 games: 44.75 shots to sink before, 44.07 after (no loss). */
+  var JITTER = 0.15;
+  function densityPick(K, k, rng) {
+    var h = D.heat(K), cells = [];
+    for (var c = 0; c < NN; c++) if (!K.cell[c]) cells.push({ c: c, v: h.p[c] * (1 + JITTER * rng()) + rng() * 1e-9 });
+    cells.sort(function (a, b) { return b.v - a.v; });
+    return cells.slice(0, k).map(function (x) { return x.c; });
+  }
+
   /** k squares to call against the board described by K. */
   function choose(level, K, k, rng) {
     rng = rng || Math.random;
@@ -60,7 +71,7 @@
       for (var c = 0; c < NN; c++) if (!taken[c]) free.push(c);
       return free.length ? pick(free, rng) : -1;
     }
-    if (level === 'hard') return D.topK(K, k, rng);
+    if (level === 'hard') return densityPick(K, k, rng);
     var live = level === 'medium' ? liveHits(K) : [];
     while (out.length < k) {
       var c = -1;

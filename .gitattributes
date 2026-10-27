@@ -3,3 +3,12 @@ js/fx.js -text
 js/table.js -text
 css/table.css -text
 js/online.js -text
+# shared kits _pwa / _profile / _coach: byte-for-byte copies of the kit's committed files
+sw.js -text
+js/pwa.js -text
+tools/pwa-check.mjs -text
+tools/make-icons.mjs -text
+js/profile.js -text
+css/profile.css -text
+js/coach.js -text
+css/coach.css -text
