@@ -1,6 +1,6 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
-import { createLocal, createOnline } from "./online.js?v=14";
+import { createLocal, createOnline } from "./online.js?v=a3d0418b";
 import { makeGame } from "./game.mjs?v=14";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;

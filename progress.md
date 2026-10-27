@@ -71,6 +71,7 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Money $0; no copyrighted art or rulebook text; never write in a `.claude` folder.
 
 ## Traps
+- **online.js cache stamp (2026-10-27):** every import of `js/online.js` uses `?v=a3d0418b`, the `_online` content stamp. After a re-copy: put the new stamp from `node ../_online/tools/stamp.mjs` there, bump the importing file's `?v=` (and pwa.js `data-version`), then `node ../_online/tools/stamp.mjs --check .` must say OK.
 - **Firestore refuses arrays inside arrays in a move doc.** Place moves are `{t:'place', ships:[{cells:[…]}]}` (`E.placeMove`). `tests/online.test.mjs` checks every bot move for nesting. Found live 2026-10-20.
 - `js/online.js` is a verbatim copy of `_online/online.js`; never edit here.
 - Lab numbers are baked into `js/lab-data.js`; rerun `node tools/lab-data.js 0.4` after changing a computer or the heatmap.
