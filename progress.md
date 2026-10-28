@@ -72,6 +72,7 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Money $0; no copyrighted art or rulebook text; never write in a `.claude` folder.
 
 ## Traps
+- **Kits re-copied 2026-10-27 (kitsweep, v18):** `_coach` 1.1.0, `_pwa` 1.3.0; pwa-check 18/18 WebKit (one run in a parallel batch gave 17/18 "access control checks" on a localhost request, a rerun alone 18/18).
 - **online.js cache stamp (2026-10-27):** every import of `js/online.js` uses `?v=a3d0418b`, the `_online` content stamp. After a re-copy: put the new stamp from `node ../_online/tools/stamp.mjs` there, bump the importing file's `?v=` (and pwa.js `data-version`), then `node ../_online/tools/stamp.mjs --check .` must say OK.
 - **Firestore refuses arrays inside arrays in a move doc.** Place moves are `{t:'place', ships:[{cells:[…]}]}` (`E.placeMove`). `tests/online.test.mjs` checks every bot move for nesting. Found live 2026-10-20.
 - `js/online.js` is a verbatim copy of `_online/online.js`; never edit here.
