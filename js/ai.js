@@ -8,26 +8,26 @@
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./engine.js') : root.BSEngine;
   var D = node ? require('./density.js') : root.BSDensity;
-  var NN = E.N * E.N;
   var LEVELS = ['easy', 'medium', 'hard'];
   var NAMES = { easy: 'Random', medium: 'Hunt & target', hard: 'Density' };
 
   function pick(arr, rng) { return arr[Math.floor(rng() * arr.length)]; }
 
   /** A random legal fleet: each ship, biggest first, in a uniformly random legal spot. */
-  function randomFleet(fleet, noTouch, rng) {
+  function randomFleet(fleet, noTouch, rng, n) {
     rng = rng || Math.random;
-    for (var tries = 0; tries < 200; tries++) {
+    var G = E.geo(n), NN = G.NN;
+    for (var tries = 0; tries < 500; tries++) {
       var occ = new Array(NN).fill(false), block = new Array(NN).fill(false), out = [], ok = true;
       for (var s = 0; s < fleet.length; s++) {
-        var opts = E.placements(fleet[s].len).filter(function (p) {
+        var opts = E.placements(fleet[s].len, G.N).filter(function (p) {
           return p.every(function (c) { return !occ[c] && !block[c]; });
         });
         if (!opts.length) { ok = false; break; }
         var p = pick(opts, rng);
         p.forEach(function (c) {
           occ[c] = true;
-          if (noTouch) E.NB8[c].forEach(function (n) { block[n] = true; });
+          if (noTouch) G.NB8[c].forEach(function (n) { block[n] = true; });
         });
         out.push(p.slice());
       }
@@ -54,7 +54,7 @@
    *  are picked at random. Measured over 1,500 games: 44.75 shots to sink before, 44.07 after (no loss). */
   var JITTER = 0.15;
   function densityPick(K, k, rng) {
-    var h = D.heat(K), cells = [];
+    var h = D.heat(K), cells = [], NN = K.cell.length;
     for (var c = 0; c < NN; c++) if (!K.cell[c]) cells.push({ c: c, v: h.p[c] * (1 + JITTER * rng()) + rng() * 1e-9 });
     cells.sort(function (a, b) { return b.v - a.v; });
     return cells.slice(0, k).map(function (x) { return x.c; });
@@ -64,6 +64,7 @@
   function choose(level, K, k, rng) {
     rng = rng || Math.random;
     k = k || 1;
+    var NN = K.cell.length, G = E.geo(K.N);
     var taken = K.cell.map(function (v) { return v !== 0; });
     var out = [];
     function randomFree() {
@@ -76,7 +77,7 @@
     while (out.length < k) {
       var c = -1;
       for (var i = 0; i < live.length && c < 0; i++) {
-        var nb = E.NB4[live[i]].filter(function (n) { return !taken[n]; });
+        var nb = G.NB4[live[i]].filter(function (n) { return !taken[n]; });
         if (nb.length) c = pick(nb, rng);
       }
       if (c < 0) c = randomFree();

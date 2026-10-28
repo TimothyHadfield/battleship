@@ -9,10 +9,11 @@
   'use strict';
   var node = typeof module !== 'undefined' && module.exports;
   var E = node ? require('./engine.js') : root.BSEngine;
-  var N = E.N, NN = N * N;
+  // every function works on the board size carried in K (K.N, K.NN); 10x10 when missing
 
   /** What the shooter knows about board b, built only from the public view. */
   function knowledge(pub, b) {
+    var N = E.sizeOf(pub), NN = N * N;
     var cell = new Array(NN).fill(0), hitShip = new Array(NN).fill(null), sinks = [];
     var shots = pub.shots[b];
     for (var i = 0; i < shots.length; i++) {
@@ -22,7 +23,7 @@
       if (x.k) sinks.push({ id: x.k, c: x.c, n: x.n });
     }
     return {
-      fleet: pub.fleet, named: !!pub.opts.named, noTouch: !!pub.opts.noTouch,
+      N: N, NN: NN, fleet: pub.fleet, named: !!pub.opts.named, noTouch: !!pub.opts.noTouch,
       cell: cell, hitShip: hitShip, sunk: pub.sunk[b].slice(), sinks: sinks, shots: shots,
     };
   }
@@ -30,18 +31,20 @@
   /** Blank knowledge (paper companion / prior map). */
   function blank(fleet, opts) {
     opts = opts || {};
-    return { fleet: fleet, named: opts.named !== false, noTouch: !!opts.noTouch,
+    var N = E.sizeOf(opts), NN = N * N;
+    return { N: N, NN: NN, fleet: fleet, named: opts.named !== false, noTouch: !!opts.noTouch,
       cell: new Array(NN).fill(0), hitShip: new Array(NN).fill(null), sunk: [], sinks: [], shots: [] };
   }
 
   // Unnamed hits: which hit squares surely belong to already-sunk ships?
   function deadCells(K) {
+    var N = K.N || E.N, NN = N * N;
     var dead = new Array(NN).fill(false);
     if (!K.sinks.length) return dead;
     var lens = {};
     K.fleet.forEach(function (f) { lens[f.id] = f.len; });
     var options = K.sinks.map(function (sk) {
-      return E.placements(lens[sk.id]).filter(function (p) {
+      return E.placements(lens[sk.id], N).filter(function (p) {
         return p.indexOf(sk.c) >= 0 && p.every(function (q) { return K.cell[q] === 2; });
       });
     });
@@ -67,16 +70,17 @@
 
   /** Candidate positions of one unsunk ship given K (named rules). */
   function namedCandidates(K, ship) {
+    var N = K.N || E.N, NN = N * N, G = E.geo(N);
     var id = ship.id, need = 0;
     for (var q = 0; q < NN; q++) if (K.cell[q] === 2 && K.hitShip[q] === id) need++;
-    return E.placements(ship.len).filter(function (p) {
+    return E.placements(ship.len, N).filter(function (p) {
       var got = 0;
       for (var k = 0; k < p.length; k++) {
         var c = p[k], st = K.cell[c];
         if (st === 1) return false;
         if (st === 2) { if (K.hitShip[c] !== id) return false; got++; }
         if (K.noTouch) {
-          var nb = E.NB8[c];
+          var nb = G.NB8[c];
           for (var j = 0; j < nb.length; j++) if (K.cell[nb[j]] === 2 && K.hitShip[nb[j]] !== id) return false;
         }
       }
@@ -86,6 +90,7 @@
 
   /** p[c] = estimated chance square c holds a ship (0 for squares already called). */
   function heat(K) {
+    var N = K.N || E.N, NN = N * N, G = E.geo(N);
     var p = new Array(NN).fill(0);
     var miss = new Array(NN).fill(1);   // product of (1 - p_ship)
     var sunk = {};
@@ -102,14 +107,14 @@
         w = cand.map(function () { return 1; });
       } else {
         cand = []; w = [];
-        E.placements(ship.len).forEach(function (pl) {
+        E.placements(ship.len, N).forEach(function (pl) {
           var hits = 0;
           for (var k = 0; k < pl.length; k++) {
             var c = pl[k], st = K.cell[c];
             if (st === 1 || (st === 2 && dead[c])) return;
             if (st === 2) hits++;
             if (K.noTouch) {
-              var nb = E.NB8[c];
+              var nb = G.NB8[c];
               for (var j = 0; j < nb.length; j++) if (dead[nb[j]]) return;
             }
           }
@@ -138,7 +143,7 @@
   function topK(K, k, rng, h) {
     rng = rng || Math.random;
     h = h || heat(K);
-    var cells = [];
+    var cells = [], NN = K.cell.length;
     for (var c = 0; c < NN; c++) if (!K.cell[c]) cells.push({ c: c, v: h.p[c] + rng() * 1e-9 });
     cells.sort(function (a, b) { return b.v - a.v; });
     return cells.slice(0, k).map(function (x) { return x.c; });
@@ -154,7 +159,7 @@
     return K.fleet.filter(function (ship) {
       if (sunk[ship.id]) return false;
       if (K.named) return !namedCandidates(K, ship).length;
-      return !E.placements(ship.len).some(function (pl) { return pl.every(function (c) { return K.cell[c] !== 1; }); });
+      return !E.placements(ship.len, K.N || E.N).some(function (pl) { return pl.every(function (c) { return K.cell[c] !== 1; }); });
     }).map(function (s) { return s.id; });
   }
 

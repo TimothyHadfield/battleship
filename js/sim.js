@@ -6,11 +6,11 @@
   var E = node ? require('./engine.js') : root.BSEngine;
   var D = node ? require('./density.js') : root.BSDensity;
   var AI = node ? require('./ai.js') : root.BSAI;
-  var NN = E.N * E.N;
 
   function Target(fleet, ships, opts) {
     this.fleet = fleet; this.ships = ships; this.opts = opts;
-    this.owner = new Array(NN).fill(-1);
+    this.NN = Math.pow(E.sizeOf(opts), 2);
+    this.owner = new Array(this.NN).fill(-1);
     for (var s = 0; s < ships.length; s++) for (var k = 0; k < ships[s].length; k++) this.owner[ships[s][k]] = s;
     this.left = ships.map(function (p) { return p.length; });
     this.K = D.blank(fleet, opts);
@@ -33,7 +33,7 @@
   /** Shots `level` needs to sink `ships` (one shot at a time). onShot(K, c, hit) optional. */
   function shotsToSink(level, fleet, ships, opts, rng, onShot) {
     var T = new Target(fleet, ships, opts || {});
-    while (!T.done() && T.n < NN) {
+    while (!T.done() && T.n < T.NN) {
       var c = AI.choose(level, T.K, 1, rng)[0];
       if (onShot) onShot(T.K, c, T.owner[c] >= 0, T);
       T.fire(c);
@@ -44,16 +44,19 @@
   /** Full game between two computers; returns { winner, volleys }. Seat `first` fires first. */
   function duel(levelA, levelB, opts, rng, first) {
     opts = E.normOpts(opts);
-    var fleet = E.FLEETS[opts.edition];
+    var fleet = E.fleetOf(opts);
     var lv = [levelA, levelB];
-    var T = [new Target(fleet, AI.randomFleet(fleet, opts.noTouch, rng), opts),
-             new Target(fleet, AI.randomFleet(fleet, opts.noTouch, rng), opts)];
+    var T = [new Target(fleet, AI.randomFleet(fleet, opts.noTouch, rng, opts.size), opts),
+             new Target(fleet, AI.randomFleet(fleet, opts.noTouch, rng, opts.size), opts)];
     var turn = first || 0, volleys = 0;
-    for (var guard = 0; guard < 400; guard++) {
+    for (var guard = 0; guard < 2000; guard++) {
       var tgt = T[1 - turn];
       var shots = opts.salvo ? fleet.length - T[turn].K.sunk.length : 1;
       if (opts.salvo && opts.salvoAll) {
         AI.choose(lv[turn], tgt.K, shots, rng).forEach(function (c) { if (!tgt.done()) tgt.fire(c); });
+      } else if (opts.again) {
+        // hit = shoot again: keep firing while the shots hit
+        while (!tgt.done() && tgt.fire(AI.choose(lv[turn], tgt.K, 1, rng)[0]).h) {}
       } else {
         for (var i = 0; i < shots && !tgt.done(); i++) tgt.fire(AI.choose(lv[turn], tgt.K, 1, rng)[0]);
       }

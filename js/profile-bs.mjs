@@ -18,7 +18,8 @@ export const BS_ACHIEVEMENTS = [
   { id: "first", title: "First win", desc: "Win a game", test: (c) => c.stats.wins >= 1 },
   { id: "hunter", title: "Out-hunted", desc: "Beat Hunt & target", test: beat("medium") },
   { id: "density", title: "Beat the odds", desc: "Beat Density", test: beat("hard") },
-  { id: "sharp", title: "Sharpshooter", desc: "Win in 40 shots or fewer", test: (c) => { const x = lastX(c); return !!(x && !x.salvo && x.shots <= 40); } },
+  { id: "sharp", title: "Sharpshooter", desc: "Win in 40 shots or fewer", test: (c) => { const x = lastX(c); return !!(x && !x.salvo && x.std !== false && x.shots <= 40); } },
+
   { id: "untouched", title: "Untouched", desc: "Win without losing a ship", test: (c) => { const x = lastX(c); return !!(x && x.lost === 0); } },
   { id: "salvo", title: "Full broadside", desc: "Win a Salvo game", test: (c) => { const x = lastX(c); return !!(x && x.salvo); } },
   { id: "streak", title: "Hat trick", desc: "Win 3 in a row", test: (c) => c.stats.bestStreak >= 3 },
@@ -33,7 +34,10 @@ export function dailyFleet(AI, fleet, rng) {
 /** What a finished (or abandoned) game looks like to the record. */
 function extraOf(pub, you) {
   const mine = pub.shots[1 - you] || [];
-  return { shots: mine.length, hits: mine.filter((x) => x.h).length, lost: (pub.sunk[you] || []).length, salvo: !!(pub.opts && pub.opts.salvo) };
+  const o = pub.opts || {};
+  // std: the official 10x10 board and five-ship fleet without shoot-again (house rules make 40 shots easy)
+  const std = (o.size == null || o.size === 10) && (o.fleet == null || o.fleet === "standard") && !o.again;
+  return { shots: mine.length, hits: mine.filter((x) => x.h).length, lost: (pub.sunk[you] || []).length, salvo: !!o.salvo, std };
 }
 
 /** A finished game -> Profile.recordResult input. you = your seat (-1: two players on one phone).

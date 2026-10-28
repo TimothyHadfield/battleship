@@ -18,7 +18,7 @@ assert.deepEqual(E.FLEETS.hasbro.map((s) => s.name), ['Carrier', 'Battleship', '
 assert.deepEqual(E.FLEETS.mb1967.map((s) => s.name), ['Aircraft Carrier', 'Battleship', 'Cruiser', 'Submarine', 'Destroyer']);
 ok('both fleets are 5 ships of 5,4,3,3,2 = 17 squares, with each edition\'s names');
 
-for (let L = 1; L <= 5; L++) assert.equal(E.placements(L).length, L === 1 ? 200 : 2 * 10 * (11 - L));
+for (let L = 1; L <= 5; L++) assert.equal(E.placements(L).length, L === 1 ? 100 : 2 * 10 * (11 - L));
 assert.equal(E.label(cell('D-4')), 'D-4'); assert.equal(cell('J-10'), 99);
 ok('a ship of length L fits 2x10x(11-L) ways on 10x10 (120 for the carrier); labels A-1..J-10');
 

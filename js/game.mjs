@@ -22,7 +22,8 @@ export function makeGame(E, D, AI) {
       const pub = ctx.pub;
       if (pub.phase === "place") {
         const fx = ctx.state && ctx.state.fixed && ctx.state.fixed[seat];
-        return E.placeMove(fx && !E.fleetError(fx, pub.fleet, pub.opts.noTouch) ? fx : AI.randomFleet(pub.fleet, pub.opts.noTouch, rng));
+        const n = E.sizeOf(pub);
+        return E.placeMove(fx && !E.fleetError(fx, pub.fleet, pub.opts.noTouch, n) ? fx : AI.randomFleet(pub.fleet, pub.opts.noTouch, rng, n));
       }
       const K = D.knowledge(pub, 1 - seat);
       const level = (pub.levels && pub.levels[seat]) || "hard";
