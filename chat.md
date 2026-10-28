@@ -45,3 +45,9 @@
 - **Built:** copied `sw.js`, `js/pwa.js`, `tools/pwa-check.mjs`, `tools/make-icons.mjs` from `_pwa` 1.1.0; `manifest.webmanifest`, `icons/` (192/512/maskable from icon.svg; apple-touch-icon kept); head tags; `PWA.safeToReload` in app.mjs; v14.
 - **Verified:** `npm run test:pwa` 3/16 on v13 → 18/18 on v14 (WebKit and Chromium 393×659): offline reload/cold open, a shot answered by the computer offline, weak signal opens in seconds, next open after a deploy shows it in one load, mid-game pill (no reload), safe-point auto-reload. `npm test` green.
 - **Open:** real iPhone home-screen app; Tim's look at the pill.
+
+## 2026-10-27 — improvement pass (v17, builder for the portfolio manager)
+- **Asked:** per-game improvement pass from the competitor analysis (classic.md: bigger hit/sink moment, named computer captains, rematch online = out of scope); computer not predictable; kits `_pwa` 1.2.0 identical, `_profile` 1.1.0, `_coach`; Undo vs computer (not Daily); end-of-game replay; remove empty bands.
+- **Built:** Density opening jitter (40 → 97 squares in its first 20 shots, strength same); `_profile` + `_coach` copies; `profile-bs.mjs`, `guide.mjs`; fixed computer fleets (Daily, guided); My stats/Elo/achievements/Daily; Undo; Replay; guided first game; captains (plate face, laptop card filling the empty band above your fleet, lines on sink/end); hit burst + sinking tilt; heatmap off by default (rated).
+- **Verified:** `npm test` (new `tests/profile.test.mjs` failed on the old game.mjs, passes now; Density-variety test failed 40/153 → passes 97/199); `test:pwa` 18/18; scratchpad flow 14/14 (WebKit 393) and guided 8/8 (Chrome 393); screenshots 393, iPhone SE, 1280, 1440.
+- **Open:** see progress.md NOT verified (v17 line).

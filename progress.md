@@ -1,7 +1,7 @@
 # Battleship — progress
 
 ## START HERE
-Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-27 (home-screen app v14).
+Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-27 (improvement pass, build 17: My stats/Elo, achievements, Daily, Undo, replay, guided game, captains).
 Live: https://timothyhadfield.github.io/battleship/ · repo https://github.com/TimothyHadfield/battleship
 
 ## Goal right now
@@ -18,6 +18,7 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 | Paper tab (real-game companion with heatmap) | done |
 | Lab: strength, histogram, your-fleet test, calibration, head-to-head, first-player edge, hiding styles, prior map, rule-switch effects | done |
 | Rules, Settings | done |
+| Improvement pass v17 (2026-10-27): `_profile` 1.1.0 (My stats pill in header, Elo, 8 achievements, Daily), `_coach` guided first game (8 steps, Settings → Learn and Rules tab button, first-visit offer), Undo vs computer, end-of-game Replay (shot by shot with the hit chance each shot had), captains (Ensign Pip / Lt. Hale / Admiral Vane, original SVG faces, lines; laptop card above your fleet), hit burst + sinking-ship tilt, Density openings no longer predictable | done; `npm test` 5 suites, `test:pwa` 18/18, flow 14/14 (WebKit 393), guided 8/8 steps (Chrome 393) |
 | Sounds, celebrations, animations (`js/fx.js` shared copy + `js/fxgame.js` director), "Sound & effects" in Settings | done v10; `tests/fx.test.mjs`; fx.js 1.0.3 re-copied v11 |
 | Real-table look (v11): wood table (`css/table.css` + `js/table.js`, shared kit copies), target grid = upright plastic lid with a peg hole per square, ocean grid = flat base leaning away (CSS 3-D), ships with deck peg holes, real-looking pegs, peg tray that runs down as pegs are used, opponent name plate on the back of their lid; laptop = case in the middle (lid above, base in front) + slim side panel | done v11 |
 | Edge pass (v12, 2026-10-20): 50 weird scenarios tested, 11 failed, all fixed (table below) | done v12; `tests/edge.test.js` |
@@ -92,6 +93,11 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Laptop base column width = `calc(100% - 208px - 100dvh)` (what the lid leaves); change it if the top bar, tab bar or lid padding changes height.
 - **Home-screen app / offline (v14, 2026-10-27):** `sw.js` + `js/pwa.js` + `tools/pwa-check.mjs` + `tools/make-icons.mjs` are verbatim copies of `Board and Card Games/_pwa` (repo game-pwa); never edit here. `pwa.js` loads (defer) just before `app.mjs`; its `data-version` = the `?v=` build, bump together. `PWA.safeToReload` is at the end of app.mjs: true only when not online, no sheet/cover, no focused field, and game over or a saved game while on Rules/Settings. Test: `npm run test:pwa` (~1 min, WebKit; `--engine chromium`). `tests/pwa-check.json` drives the play.
 - Computer / pass-the-phone games are saved in localStorage `battleship:v1` → `local` during firing and resumed on load (`game.setup` with `options.resume`).
+- **v17 kits:** `js/profile.js`, `css/profile.css` (`_profile` 1.1.0) and `js/coach.js`, `css/coach.css` (`_coach`) are verbatim copies, marked `-text` in `.gitattributes`, never edit here. Game side: `js/profile-bs.mjs` (levels/Elo, achievements, results, quit rule), `js/guide.mjs` (captains, guided fleet, coach steps). Build is `?v=17` everywhere (index.html, app.mjs imports, `VERSION`, pwa.js `data-version`); online.js keeps `?v=a3d0418b`.
+- **Rated vs help:** heatmap is OFF by default (one-time migration flag `S.heatRated`); any turn shown with the heatmap, Best, or an Undo sets `P.helped` → recorded as "help" (unrated). Daily: no heatmap/Best/Undo, fixed fleet from `Profile.daily.rng(date,"fleet")`, hasbro rules, you fire first, vs Density. Guided games never record. Quitting after your first shot = a loss (`quitResult`). `dailyWord()` reads `Profile.daily.result()` → `{r, score}`.
+- Computer fleets chosen in advance go in host state `st.fixed[seat]` (never in public/private views; tested).
+- **Headless WebKit on this laptop sometimes runs no animation frames** (rAF count 0): coach notes stay on the first step and sheets stay at their slide-in start (invisible). Check coach/sheet flows with `--engine chrome`; WebKit flow tests use JS clicks.
+- Never write regexes through a Python string without `r""`: a `\b` became a literal backspace in app.mjs once (sink animation silently never ran).
 
 ## Decisions
 - 1967 "variant" = Milton Bradley names (Aircraft Carrier, Battleship, Cruiser, Submarine, Destroyer) + Salvo called all at once; sizes are the same 5/4/3/3/2 (sources agree).
@@ -109,6 +115,9 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Visibility v13 (Tim didn't pick these, plainest matching choice): laptop base moved from under the lid to beside it; tap-to-enlarge your fleet (⤢ after "Your fleet", ✕ while big; closes on tap, resize, tab change, new game, pass-the-phone cover); laptop heat numbers scale with the squares (still dimmed); sideways phone lid column only as wide as the lid.
 - Design pass v9: heatmap amber→red with the faintest cells left clear; target board glows blue on your shot; status is a pill; Fire is neutral until a square is picked; small controls get invisible 40px hit areas; Lab/Rules/Settings show the Play status (not Paper's); tray ship icons on laptop only (phone tray stays one row).
 
+- Improvement pass v17 (Tim didn't pick these, plainest matching choice): heatmap off by default so games count; captain names/faces/lines; achievement names; Daily = vs Density, you fire first, official rules; "My stats" pill in the header; "Heatmap off · rated game" line; Undo icon-only on phones; guided-game text; laptop captain card in the empty wood above your fleet. Rematch + running score online skipped (online is out of scope).
+- Ladder: Density > Hunt & target 85% (3,000 games), Hunt & target > Random 98.5%; Elo 700 / 1450 / 1750. Density picks at random among squares within 15% of the best (`JITTER`), strength unchanged within noise (84.6% vs 85.4%).
+
 ## NOT verified
 - The printed 1967 rule sheet itself (no scan found); 1967 facts come from secondary sources (see rules-check).
 - Real iPhone (only WebKit headless at 393 px). Drag on a real touch screen not tried.
@@ -120,4 +129,5 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Edge pass v12: opponent-leave toast and double-Fire guard checked with fake online snapshots, not two real browsers; no real iPhone; a browser that draws no transform at all would still be fine for layout but untested.
 - Visibility v13: headless WebKit + Chrome only (393, 320, 659×393, 1280, 1440); tap-to-enlarge not tried on a real iPhone. In Chrome/iOS the laptop base's 3-D lean leaves a gap under "Your fleet" and shrinks its far rows. Scripts: session scratchpad `vis/battleship/` (shoot.mjs, check.mjs).
 - Home-screen app v14: never added to a real iPhone home screen; offline + new-build pickup checked only in headless WebKit/Chromium against a Pages-like local server (and the live service worker in headless WebKit). The "New version — tap to reload" pill (dark, top centre) is the kit's plain look; Tim hasn't seen it.
+- v17: guided game walked through all 8 steps only in headless Chrome (WebKit headless ran no frames here); Daily sheet, burst and sink seen in Chrome screenshots; no real iPhone. Daily "same fleet for everyone" checked by seed, not across two devices.
 - "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).
