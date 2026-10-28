@@ -51,3 +51,9 @@
 - **Built:** Density opening jitter (40 → 97 squares in its first 20 shots, strength same); `_profile` + `_coach` copies; `profile-bs.mjs`, `guide.mjs`; fixed computer fleets (Daily, guided); My stats/Elo/achievements/Daily; Undo; Replay; guided first game; captains (plate face, laptop card filling the empty band above your fleet, lines on sink/end); hit burst + sinking tilt; heatmap off by default (rated).
 - **Verified:** `npm test` (new `tests/profile.test.mjs` failed on the old game.mjs, passes now; Density-variety test failed 40/153 → passes 97/199); `test:pwa` 18/18; scratchpad flow 14/14 (WebKit 393) and guided 8/8 (Chrome 393); screenshots 393, iPhone SE, 1280, 1440.
 - **Open:** see progress.md NOT verified (v17 line).
+
+## 2026-10-28 — wave 3 improvements (v19, builder for the classic manager)
+- **Asked:** Tim: "go through each project adding features or changing things … customization, practical settings, links to youtube videos … common house rules … making the layout better on iphone". Brief: house rules (shoot again, other fleets, 8×8/12×12) off by default with computers that play them, engine tests first, ladder must hold; Videos in Rules; speed / remember setup; iPhone layout check.
+- **Built:** size-aware engine/density/ai/sim; fleets small + sea battle; hit = shoot again; Settings rows Board, Fleet, Hit = shoot again, Start with my last fleet, Computer speed; Rules House rules + 5 videos; Paper and Lab on new boards; coach offer moved to the top.
+- **Verified:** `tests/variants.test.mjs` seen failing on the old engine and old profile-bs, passes now; `npm test` 6 suites; `test:pwa` 18/18 WebKit; ladder measured in node on every board/fleet; scratchpad `bs-w3/layout.mjs` 45 views WebKit 0 failing; videos via YouTube oembed.
+- **Open:** progress.md NOT verified (v19 line).

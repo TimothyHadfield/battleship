@@ -1,7 +1,7 @@
 # Battleship — progress
 
 ## START HERE
-Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-27 (improvement pass, build 17: My stats/Elo, achievements, Daily, Undo, replay, guided game, captains).
+Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-28 (wave 3, build 19: house rules — 8×8/12×12 boards, small and sea-battle fleets, hit = shoot again; computer speed; start with my last fleet; Rules videos).
 Live: https://timothyhadfield.github.io/battleship/ · repo https://github.com/TimothyHadfield/battleship
 
 ## Goal right now
@@ -19,6 +19,7 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 | Lab: strength, histogram, your-fleet test, calibration, head-to-head, first-player edge, hiding styles, prior map, rule-switch effects | done |
 | Rules, Settings | done |
 | Improvement pass v17 (2026-10-27): `_profile` 1.1.0 (My stats pill in header, Elo, 8 achievements, Daily), `_coach` guided first game (8 steps, Settings → Learn and Rules tab button, first-visit offer), Undo vs computer, end-of-game Replay (shot by shot with the hit chance each shot had), captains (Ensign Pip / Lt. Hale / Admiral Vane, original SVG faces, lines; laptop card above your fleet), hit burst + sinking-ship tilt, Density openings no longer predictable | done; `npm test` 5 suites, `test:pwa` 18/18, flow 14/14 (WebKit 393), guided 8/8 steps (Chrome 393) |
+| Wave 3 v19 (2026-10-28): house rules in Settings, all off by default — Board 8×8 (no Carrier) / 10×10 / 12×12 (+Frigate 4, Corvette 3); Fleet Standard / Small (4,3,2) / Sea battle (4,3,3,2,2,2,1,1,1,1, forces no-touch + unnamed); Hit = shoot again (off under Salvo); computer Speed Slow/Normal/Fast (1300/650/220 ms); "Start with my last fleet"; Rules tab House rules text + 5 YouTube videos (oembed 200 + title match); Lab rule-switch rows + shoot-again duels | done; `npm test` 6 suites (variants 8 new), `test:pwa` 18/18; ladder Random/Hunt/Density 8×8 60.2/39.9/29.4, 12×12 139.2/93.0/65.7, small 91.2/52.2/36.3, sea 96.4/88.7/55.2; shoot-again Density beats Hunt 85%; layout 9 scenarios × 5 sizes 0 failing (WebKit) |
 | Sounds, celebrations, animations (`js/fx.js` shared copy + `js/fxgame.js` director), "Sound & effects" in Settings | done v10; `tests/fx.test.mjs`; fx.js 1.0.3 re-copied v11 |
 | Real-table look (v11): wood table (`css/table.css` + `js/table.js`, shared kit copies), target grid = upright plastic lid with a peg hole per square, ocean grid = flat base leaning away (CSS 3-D), ships with deck peg holes, real-looking pegs, peg tray that runs down as pegs are used, opponent name plate on the back of their lid; laptop = case in the middle (lid above, base in front) + slim side panel | done v11 |
 | Edge pass (v12, 2026-10-20): 50 weird scenarios tested, 11 failed, all fixed (table below) | done v12; `tests/edge.test.js` |
@@ -98,6 +99,11 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - **Rated vs help:** heatmap is OFF by default (one-time migration flag `S.heatRated`); any turn shown with the heatmap, Best, or an Undo sets `P.helped` → recorded as "help" (unrated). Daily: no heatmap/Best/Undo, fixed fleet from `Profile.daily.rng(date,"fleet")`, hasbro rules, you fire first, vs Density. Guided games never record. Quitting after your first shot = a loss (`quitResult`). `dailyWord()` reads `Profile.daily.result()` → `{r, score}`.
 - Computer fleets chosen in advance go in host state `st.fixed[seat]` (never in public/private views; tested).
 - **Headless WebKit on this laptop sometimes runs no animation frames** (rAF count 0): coach notes stay on the first step and sheets stay at their slide-in start (invisible). Check coach/sheet flows with `--engine chrome`; WebKit flow tests use JS clicks.
+- **Board sizes (v19):** every engine/density/ai function takes an optional size `n` (default 10); `E.geo(n)` caches N/NN/NB4/NB8/placements; `E.NB4/NB8` stay the 10×10 ones. Density's K carries `N, NN`. Grids are resized by `sizeGrid(G, n)` in app.mjs (sets CSS `--n`, class `n12`, svg viewBox, keeps `.sea` so listeners survive); grid CSS must use `repeat(var(--n,10), minmax(0,1fr))` or the 12×12 labels overflow at 320 px. Daily and guided games are always the official 10×10.
+- **Sea battle ships share names** (cruiser1/2, destroyer1-3, boat1-4 ids); Paper shows one button per identical ship. `placements(1)` lists each square once (100, was 200).
+- `store.stdFleet` = last fleet hidden on the official board (the Lab's "Your fleet" test only works on 10×10 standard). Sharpshooter and the Findable percentile / end-sheet Density average only count on official board+fleet without shoot-again (`isStd`).
+- Coach first-visit offer is moved to the TOP locally (style.css `.coach-offer{top:…;bottom:auto}`): at the bottom it covered Ready on phones. Layout tests set localStorage `coach-offer:bs-first=true` to hide it.
+- Online carries size/fleet/again in room options (pub.opts); checked with node bot games through the wrapper only.
 - Never write regexes through a Python string without `r""`: a `\b` became a literal backspace in app.mjs once (sink animation silently never ran).
 
 ## Decisions
@@ -117,6 +123,7 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Design pass v9: heatmap amber→red with the faintest cells left clear; target board glows blue on your shot; status is a pill; Fire is neutral until a square is picked; small controls get invisible 40px hit areas; Lab/Rules/Settings show the Play status (not Paper's); tray ship icons on laptop only (phone tray stays one row).
 
 - Improvement pass v17 (Tim didn't pick these, plainest matching choice): heatmap off by default so games count; captain names/faces/lines; achievement names; Daily = vs Density, you fire first, official rules; "My stats" pill in the header; "Heatmap off · rated game" line; Undo icon-only on phones; guided-game text; laptop captain card in the empty wood above your fleet. Rematch + running score online skipped (online is out of scope).
+- Wave 3 v19 (Tim didn't pick these, plainest matching choice): 8×8 drops the Carrier; 12×12 adds Frigate 4 + Corvette 3 (names ours); small fleet 4,3,2; sea battle forces no touching + unnamed hits; speeds 1300/650/220 ms; "Start with my last fleet" (off); coach offer at the top; the 5 videos; one-square ships drawn as a small boat. Confirm-before-fire already existed (tap then Fire/tap again); animations on/off already in Sound & effects.
 - Ladder: Density > Hunt & target 85% (3,000 games), Hunt & target > Random 98.5%; Elo 700 / 1450 / 1750. Density picks at random among squares within 15% of the best (`JITTER`), strength unchanged within noise (84.6% vs 85.4%).
 
 ## NOT verified
@@ -131,4 +138,5 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Visibility v13: headless WebKit + Chrome only (393, 320, 659×393, 1280, 1440); tap-to-enlarge not tried on a real iPhone. In Chrome/iOS the laptop base's 3-D lean leaves a gap under "Your fleet" and shrinks its far rows. Scripts: session scratchpad `vis/battleship/` (shoot.mjs, check.mjs).
 - Home-screen app v14: never added to a real iPhone home screen; offline + new-build pickup checked only in headless WebKit/Chromium against a Pages-like local server (and the live service worker in headless WebKit). The "New version — tap to reload" pill (dark, top centre) is the kit's plain look; Tim hasn't seen it.
 - v17: guided game walked through all 8 steps only in headless Chrome (WebKit headless ran no frames here); Daily sheet, burst and sink seen in Chrome screenshots; no real iPhone. Daily "same fleet for everyone" checked by seed, not across two devices.
+- v19: house rules online not played with two real browsers (node wrapper games only); one-square boat drag not tried on a real touch screen; layout checked headless WebKit 393/320/659×393/1280/1440 (Chromium rerun after the last landscape fix not done); no real iPhone.
 - "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).

@@ -26,6 +26,16 @@ Sources:
 | Salvo: 1967 calling | All shots called at once (white pegs as placeholders), then the defender says which hit and which ships | G | Salvo-all test |
 | Harder Salvo (Hasbro) | Don't announce which ships are hit → "Name the ship hit" switch off (sinkings still announced) | H ("For a more challenging Salvo game, don't announce which ships are hit.") | unnamed test |
 
+### House rules (2026-10-28, all off by default; not in the official box)
+| Rule | Value used | Basis | Test |
+|---|---|---|---|
+| Hit = shoot again | A hit keeps the turn, a miss passes it; ignored under Salvo | common house rule (our choice of wording) | `tests/variants.test.mjs` §3 |
+| Board 8×8 | Fleet without the Carrier: 4, 3, 3, 2 | our choice (keeps the share of the board covered close to 10×10) | §1 |
+| Board 12×12 | Standard fleet + Frigate 4 + Corvette 3 (names are ours) | our choice | §1 |
+| Small fleet | 4, 3, 2 (Battleship, Destroyer/Cruiser, Patrol Boat/Destroyer) | our choice | §1 |
+| Sea battle fleet | one 4, two 3s, three 2s, four 1s; no touching (incl. corners); hits not named | the common pencil-and-paper "Sea Battle" fleet (from memory; no source re-read this pass, NOT verified) | §1, §2 |
+| Computer ladder | Density < Hunt & target < Random avg shots on every board/fleet | measured, `node tests/variants.test.mjs` | §6 |
+
 ## Not built / not verified
 - **1967 "advanced Salvo"** (defender only says how many shots hit, not which) [G]: not built. It makes the heatmap a different, much harder problem; listed in docs/ideas.md.
 - **Original 1967 rulebook scan** not found online; the 1967 fleet comes from G (states it follows the 1967 rules) cross-checked with W's 1990 Milton Bradley table and T's box contents. NOT verified against the printed 1967 sheet.
