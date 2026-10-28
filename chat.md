@@ -57,3 +57,4 @@
 - **Built:** size-aware engine/density/ai/sim; fleets small + sea battle; hit = shoot again; Settings rows Board, Fleet, Hit = shoot again, Start with my last fleet, Computer speed; Rules House rules + 5 videos; Paper and Lab on new boards; coach offer moved to the top.
 - **Verified:** `tests/variants.test.mjs` seen failing on the old engine and old profile-bs, passes now; `npm test` 6 suites; `test:pwa` 18/18 WebKit; ladder measured in node on every board/fleet; scratchpad `bs-w3/layout.mjs` 45 views WebKit 0 failing; videos via YouTube oembed.
 - **Open:** progress.md NOT verified (v19 line).
+- **Kit sweep v20 (same day, builder A1):** game-coach 1.2.0 + game-pwa 1.4.0 re-copied, offer `place:'auto'` avoiding Ready (local top rule removed); offer clear of tab bar + Ready at 393×659 / 320×568 / 659×393, settings 320 px no sideways scroll, no selects, `npm test` green, pwa-check 18/18.

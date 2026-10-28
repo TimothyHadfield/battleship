@@ -516,11 +516,8 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
 .rules .vids { margin: 4px 0 12px; padding-left: 18px; color: #cfd3de; }
 .rules .vids li { margin: 6px 0; line-height: 1.35; }
 .rules .vids .muted { font-size: 12px; }
-/* the guided-game offer (shared _coach kit) sat over Ready and the tab bar at the bottom: shown at the top
-   instead, over the header (phone: centred; laptop: top-right corner) */
-.coach-offer { top: calc(8px + env(safe-area-inset-top)); bottom: auto; }
-.coach-offer.enter { animation: bs-offer-in .25s ease-out; }
-@keyframes bs-offer-in { from { opacity: 0; transform: translate(-50%, -10px); } }
+/* the guided-game offer (shared _coach kit 1.2.0, place 'auto' avoiding Ready) picks its own top/bottom;
+   laptop: right-hand corner */
 @media (min-width: 900px) {
   .coach-offer { left: auto; right: 16px; transform: none; }
   .coach-offer.enter { animation: bs-offer-in-r .25s ease-out; }

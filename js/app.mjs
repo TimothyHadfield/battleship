@@ -1,14 +1,14 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
 import { createLocal, createOnline } from "./online.js?v=a3d0418b";
-import { makeGame } from "./game.mjs?v=19";
-import { BS_LEVELS, BS_ACHIEVEMENTS, dailyFleet, profileResult, quitResult } from "./profile-bs.mjs?v=19";
-import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./guide.mjs?v=19";
+import { makeGame } from "./game.mjs?v=20";
+import { BS_LEVELS, BS_ACHIEVEMENTS, dailyFleet, profileResult, quitResult } from "./profile-bs.mjs?v=20";
+import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./guide.mjs?v=20";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const Profile = window.Profile, COACH = window.COACH;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-28.19";
+const VERSION = "2026-10-28.20";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
@@ -1366,7 +1366,7 @@ const start = (location.hash || "").slice(1);
 showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play", "replace");
 // first visit: offer the guided game once (nothing played yet, on the Play tab)
 if (!resumed && !store.local && !Profile.stats().games && !tour.seen() && tab === "play" && !P.guided)
-  COACH.offer({ id: "bs-first", title: "New to Battleship?", text: "A guided first game against the Random computer, one step at a time.", yes: "Teach me", no: "No thanks", onYes: () => startGuided() });
+  COACH.offer({ id: "bs-first", title: "New to Battleship?", text: "A guided first game against the Random computer, one step at a time.", yes: "Teach me", no: "No thanks", onYes: () => startGuided(), place: "auto", avoid: ['[data-act="ready"]'] });
 // Home-screen app (js/pwa.js, shared _pwa kit): a new build may reload the page by itself only when nothing
 // would be lost: not online, no sheet or pass-the-phone cover up, no text field in use, and either the game
 // is over or a saved computer / pass-the-phone game waits while you read Rules or Settings (not Lab: its
