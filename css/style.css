@@ -46,20 +46,20 @@ main { flex: 1 1 auto; min-height: 0; position: relative; }
 .sidehead { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 10px 0 6px; display: flex; align-items: center; gap: 6px; }
 
 /* ---------- grid ---------- */
-.grid { position: relative; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); --lab: 16px; user-select: none; -webkit-user-select: none; }
+.grid { position: relative; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); --cs: calc(100% / var(--n, 10)); --lab: 16px; user-select: none; -webkit-user-select: none; }
 .grid.small { --lab: 10px; }
 .grid .cols, .grid .rows { position: absolute; display: grid; color: var(--muted); font-size: 10px; font-weight: 600; }
 .grid.small .cols, .grid.small .rows { font-size: 7px; }
-.grid .cols { left: var(--lab); right: 0; top: 0; height: var(--lab); grid-template-columns: repeat(10, 1fr); align-items: center; text-align: center; }
-.grid .rows { top: var(--lab); bottom: 0; left: 0; width: var(--lab); grid-template-rows: repeat(10, 1fr); align-items: center; text-align: center; }
+.grid .cols { left: var(--lab); right: 0; top: 0; height: var(--lab); grid-template-columns: repeat(var(--n, 10), minmax(0, 1fr)); align-items: center; text-align: center; }
+.grid .rows { top: var(--lab); bottom: 0; left: 0; width: var(--lab); grid-template-rows: repeat(var(--n, 10), minmax(0, 1fr)); align-items: center; text-align: center; }
 .sea { position: absolute; left: var(--lab); top: var(--lab); right: 0; bottom: 0; border-radius: 6px; overflow: hidden;
   background:
-    linear-gradient(var(--seaLine) 1px, transparent 1px) 0 0 / 10% 10%,
-    linear-gradient(90deg, var(--seaLine) 1px, transparent 1px) 0 0 / 10% 10%,
+    linear-gradient(var(--seaLine) 1px, transparent 1px) 0 0 / var(--cs) var(--cs),
+    linear-gradient(90deg, var(--seaLine) 1px, transparent 1px) 0 0 / var(--cs) var(--cs),
     radial-gradient(120% 120% at 30% 20%, var(--sea1), var(--sea2));
   box-shadow: inset 0 0 0 1px rgba(110,168,254,.22), 0 6px 20px rgba(0,0,0,.35); }
 .sea svg.ships { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.sea .cells { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr); }
+.sea .cells { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--n, 10), minmax(0, 1fr)); grid-template-rows: repeat(var(--n, 10), minmax(0, 1fr)); }
 .cell { position: relative; display: flex; align-items: center; justify-content: center; border-radius: 3px; transition: background-color .35s; min-width: 0; min-height: 0; }
 .grid.firing .cell.open { cursor: crosshair; }
 .cell.sel { box-shadow: inset 0 0 0 2.5px var(--accent); background-color: rgba(110,168,254,.22) !important; }
@@ -314,16 +314,16 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
 .grid .rows { bottom: var(--rim); color: #eef1f6; text-shadow: 0 1px 0 rgba(0,0,0,.45); }
 .sea { right: var(--rim); bottom: var(--rim); border-radius: 4px;
   background:
-    linear-gradient(rgba(170,200,235,.16) 1px, transparent 1px) 0 0 / 10% 10%,
-    linear-gradient(90deg, rgba(170,200,235,.16) 1px, transparent 1px) 0 0 / 10% 10%,
+    linear-gradient(rgba(170,200,235,.16) 1px, transparent 1px) 0 0 / var(--cs) var(--cs),
+    linear-gradient(90deg, rgba(170,200,235,.16) 1px, transparent 1px) 0 0 / var(--cs) var(--cs),
     radial-gradient(120% 120% at 30% 20%, #102438, #07111c);
   box-shadow: inset 0 2px 4px rgba(0,0,0,.7), inset 0 0 0 1px rgba(0,0,0,.6); }
 /* a peg hole in every square */
 .sea .cell { background-image: radial-gradient(circle closest-side, #03070c 0 17%, rgba(255,255,255,.16) 21%, transparent 27%); }
 /* the ocean grid (base) is lighter, with waves moulded in */
 #smallGrid .sea { background:
-    linear-gradient(rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / 10% 10%,
-    linear-gradient(90deg, rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / 10% 10%,
+    linear-gradient(rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / var(--cs) var(--cs),
+    linear-gradient(90deg, rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / var(--cs) var(--cs),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 8q6-5 12 0t12 0' fill='none' stroke='%23fff' stroke-opacity='.13' stroke-width='1.3'/%3E%3C/svg%3E") 0 0 / 12px 6px,
     radial-gradient(120% 120% at 30% 20%, #23679c, #133f66); }
 /* it lies flat on the table, so it leans away from you */
@@ -382,8 +382,8 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
 @media (max-width: 379px) { .oppseat { display: none; } }
 /* setting up: in the real game you press your ships into the flat ocean base, so the big board shows the base while you place */
 .grid.big.placing .sea { background:
-    linear-gradient(rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / 10% 10%,
-    linear-gradient(90deg, rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / 10% 10%,
+    linear-gradient(rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / var(--cs) var(--cs),
+    linear-gradient(90deg, rgba(220,240,255,.2) 1px, transparent 1px) 0 0 / var(--cs) var(--cs),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 8q6-5 12 0t12 0' fill='none' stroke='%23fff' stroke-opacity='.13' stroke-width='1.3'/%3E%3C/svg%3E") 0 0 / 16px 8px,
     radial-gradient(120% 120% at 30% 20%, #23679c, #133f66); }
 /* on your lid you only ever see pegs: a sunk enemy ship is a faint outline under its red pegs */
@@ -500,3 +500,30 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
   #tab-play .capcard:not([hidden]) ~ .mine { grid-row: 2; }
   #tab-play.mine-zoom .capcard { visibility: hidden; }
 }
+
+/* ---------- house-rule boards and fleets (v19): 8x8 / 12x12 grids take --n from app.mjs; 10-ship fleets */
+.fleet.many { gap: 2px; }
+.fleet.many .fchip { padding: 1px 1px; }
+.fleet.many .fchip .shipicon { height: 9px; }
+@media (max-width: 899px) { .fleet.many .fchip .nm { display: none; } }
+@media (min-width: 900px) { .fleet.many .fchip .shipicon { height: 13px; } .fleet.many .fchip span { font-size: 10px; } }
+.tray.many { gap: 3px; }
+.tray.many button { padding: 0 4px; flex: 0 1 auto; }
+.tray.many button span { display: none; }
+.tray.many button .shipicon { display: block; height: 9px; }
+.grid.n12 .cols, .grid.n12 .rows { font-size: 9px; line-height: 1; }
+.grid.small.n12 .cols, .grid.small.n12 .rows { font-size: 7px; letter-spacing: -.3px; }
+.rules .vids { margin: 4px 0 12px; padding-left: 18px; color: #cfd3de; }
+.rules .vids li { margin: 6px 0; line-height: 1.35; }
+.rules .vids .muted { font-size: 12px; }
+/* the guided-game offer (shared _coach kit) sat over Ready and the tab bar at the bottom: shown at the top
+   instead, over the header (phone: centred; laptop: top-right corner) */
+.coach-offer { top: calc(8px + env(safe-area-inset-top)); bottom: auto; }
+.coach-offer.enter { animation: bs-offer-in .25s ease-out; }
+@keyframes bs-offer-in { from { opacity: 0; transform: translate(-50%, -10px); } }
+@media (min-width: 900px) {
+  .coach-offer { left: auto; right: 16px; transform: none; }
+  .coach-offer.enter { animation: bs-offer-in-r .25s ease-out; }
+  @keyframes bs-offer-in-r { from { opacity: 0; transform: translateY(-10px); } }
+}
+@media (max-width: 899px) and (max-height: 480px) { .fleet.many { gap: 1px; } .fleet.many .fchip .shipicon { height: 7px; } }

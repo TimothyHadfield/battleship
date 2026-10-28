@@ -1,14 +1,14 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
 import { createLocal, createOnline } from "./online.js?v=a3d0418b";
-import { makeGame } from "./game.mjs?v=18";
-import { BS_LEVELS, BS_ACHIEVEMENTS, dailyFleet, profileResult, quitResult } from "./profile-bs.mjs?v=18";
-import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./guide.mjs?v=18";
+import { makeGame } from "./game.mjs?v=19";
+import { BS_LEVELS, BS_ACHIEVEMENTS, dailyFleet, profileResult, quitResult } from "./profile-bs.mjs?v=19";
+import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./guide.mjs?v=19";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const Profile = window.Profile, COACH = window.COACH;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-27.18";
+const VERSION = "2026-10-28.19";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
@@ -25,20 +25,32 @@ FX.onChange(fxRootClasses);
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (p) => (p >= 0.995 && p < 1 ? ">99" : p > 0 && p < 0.005 ? "<1" : Math.round(p * 100)) + "%";
-const LABEL = (c) => E.label(c);
+const LABEL = (c, n) => E.label(c, n);
 
 // ------------------------------------------------------------------ storage
 const KEY = "battleship:v1";
 // heat: the Play heatmap. Off by default so games vs the computer count as rated; one tap on the Play panel
 // turns it on (that game then counts "with help"). pheat: the Paper tab's own heatmap (its whole point: on).
-const DEF = { edition: "hasbro", salvo: false, salvoAll: false, named: true, noTouch: false, first: "random", level: "hard", heat: false, pheat: true, best: true, name: "", opp: "computer" };
+const DEF = { edition: "hasbro", salvo: false, salvoAll: false, named: true, noTouch: false, first: "random", size: 10, fleet: "standard", again: false, level: "hard", heat: false, pheat: true, best: true, name: "", opp: "computer", botSpeed: "normal", keepFleet: false };
 let store = {};
 try { store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { store = {}; }
 const S = Object.assign({}, DEF, store.settings || {});
 // players from before My stats had the heatmap on by default: switched off once (Paper keeps it)
 if (!S.heatRated) { if (store.settings && store.settings.heat != null) S.pheat = !!store.settings.heat; S.heat = false; S.heatRated = 1; }
 function save() { try { store.settings = S; localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
-const rulesOpts = () => ({ edition: S.edition, salvo: S.salvo, salvoAll: S.salvoAll, named: S.named, noTouch: S.noTouch, first: S.first });
+const rulesOpts = () => ({ edition: S.edition, salvo: S.salvo, salvoAll: S.salvoAll, named: S.named, noTouch: S.noTouch, first: S.first, size: S.size, fleet: S.fleet, again: S.again });
+// the computer's think time before each move (Settings → Computer speed)
+const BOT_MS = { slow: 1300, normal: 650, fast: 220 };
+const botMs = () => BOT_MS[S.botSpeed] || BOT_MS.normal;
+/** Official board and fleet: the Lab's reference numbers (Findable, Density average) apply only to these. */
+const isStd = (o) => { const n = E.normOpts(o); return n.size === 10 && n.fleet === "standard"; };
+/** The rules in one short line (new-game sheet, online room). */
+function ruleLine(o) {
+  const n = E.normOpts(o);
+  return [n.size !== 10 ? n.size + "×" + n.size : null, n.fleet === "sea" ? "Sea battle fleet" : n.fleet === "small" ? "Small fleet" : n.edition === "mb1967" ? "1967 fleet" : "Hasbro fleet",
+    n.salvo ? (n.salvoAll ? "Salvo (all at once)" : "Salvo") : "One shot a turn", n.again ? "hit = shoot again" : null,
+    n.named || n.fleet === "sea" ? null : "unnamed hits", n.noTouch && n.fleet !== "sea" ? "no touching" : null].filter(Boolean).join(" · ");
+}
 
 // ------------------------------------------------------------------ small UI helpers
 let toastT = null;
@@ -62,6 +74,11 @@ const TIPS = {
   named: "The official rules say which ship you hit. Off = the box's harder variant: only 'hit', sinkings still announced.",
   noTouch: "A common house rule: ships may not sit side by side or corner to corner.",
   fxsound: "Sounds follow your phone's volume. The iPhone silent switch may mute them.",
+  size: "House rule. 8×8 is a quick game without the Carrier (4,3,3,2). 12×12 is a long game with a Frigate (4) and a Corvette (3) added. Small and sea-battle fleets stay the same on any size.",
+  fleet: "Standard = the box's five ships. Small = three ships (4,3,2) for a quick game. Sea battle = the pencil-and-paper fleet: one 4, two 3s, three 2s, four 1s; ships never touch and hits aren't named.",
+  again: "A common house rule: after a hit you fire again; a miss passes the turn. One-shot games only (not Salvo).",
+  botSpeed: "How long the computer waits before each shot.",
+  keepFleet: "Placement starts with the last fleet you hid under the same rules instead of a random one.",
   edition: "Same five sizes (5,4,3,3,2). 2002 Hasbro names: Carrier, Battleship, Destroyer, Submarine, Patrol Boat. 1967 Milton Bradley: Aircraft Carrier, Battleship, Cruiser, Submarine, Destroyer.",
 };
 document.addEventListener("click", (ev) => {
@@ -84,13 +101,27 @@ const switchHtml = (key, on, dis) => `<button class="switch${on ? " on" : ""}${d
 const rg = (t) => `hsl(${Math.round(4 + 128 * Math.max(0, Math.min(1, t)))}, 62%, 56%)`;
 
 // ------------------------------------------------------------------ grid widget
-function buildGrid(el) {
-  const cols = Array.from({ length: 10 }, (_, i) => `<span>${i + 1}</span>`).join("");
-  const rows = "ABCDEFGHIJ".split("").map((r) => `<span>${r}</span>`).join("");
-  const cells = Array.from({ length: 100 }, (_, c) => `<button class="cell" data-c="${c}" aria-label="${LABEL(c)}"></button>`).join("");
-  el.innerHTML = `<div class="cols">${cols}</div><div class="rows">${rows}</div><div class="sea"><svg class="ships" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg><div class="cells">${cells}</div></div>`;
-  return { el, sea: $(".sea", el), svg: $("svg", el), cells: [...el.querySelectorAll(".cell")], st: new Array(100).fill(-1), shipKey: "" };
+function buildGrid(el, n = 10) {
+  el.innerHTML = `<div class="cols"></div><div class="rows"></div><div class="sea"><svg class="ships" preserveAspectRatio="none"></svg><div class="cells"></div></div>`;
+  const G = { el, sea: $(".sea", el), svg: $("svg", el), cells: [], st: [], shipKey: "", n: 0 };
+  sizeGrid(G, n);
+  return G;
 }
+/** Redraw a grid's squares for an n x n board (8, 10 or 12). The sea element stays, so its listeners stay. */
+function sizeGrid(G, n) {
+  if (G.n === n) return G;
+  G.n = n;
+  G.el.style.setProperty("--n", n);
+  G.el.classList.toggle("n12", n === 12);
+  $(".cols", G.el).innerHTML = Array.from({ length: n }, (_, i) => `<span>${i + 1}</span>`).join("");
+  $(".rows", G.el).innerHTML = "ABCDEFGHIJKL".slice(0, n).split("").map((r) => `<span>${r}</span>`).join("");
+  $(".cells", G.el).innerHTML = Array.from({ length: n * n }, (_, c) => `<button class="cell" data-c="${c}" aria-label="${LABEL(c, n)}"></button>`).join("");
+  G.svg.setAttribute("viewBox", `0 0 ${n * 100} ${n * 100}`);
+  G.cells = [...G.el.querySelectorAll(".cell")];
+  G.st = new Array(n * n).fill(-1); G.shipKey = "";
+  return G;
+}
+const zeros = (G) => new Array(G.n * G.n).fill(0);
 function heatBg(p, max) {
   if (!p || !max) return "";
   const t = Math.min(1, p / max);
@@ -103,7 +134,7 @@ function heatBg(p, max) {
 function paint(G, o) {
   const sel = new Set(o.sel || []);
   const max = o.heat ? o.heat.max : 0;
-  for (let c = 0; c < 100; c++) {
+  for (let c = 0; c < G.cells.length; c++) {
     const b = G.cells[c], s = o.state[c] || 0;
     if (G.st[c] !== s) {
       b.innerHTML = s === 2 ? `<span class="peg hit${o.fresh && o.fresh.has(c) ? " new" : ""}"></span>` : s === 1 ? `<span class="peg miss${o.fresh && o.fresh.has(c) ? " new" : ""}"></span>` : "";
@@ -128,9 +159,9 @@ function paint(G, o) {
   const key = JSON.stringify(ships);
   if (key !== G.shipKey) {
     G.svg.innerHTML = ships.map((sh) => {
-      const pl = Art.cellsToPlacement(sh.cells), sinking = / sinking$/.test(sh.cls || "");
+      const pl = Art.cellsToPlacement(sh.cells, G.n), sinking = / sinking$/.test(sh.cls || "");
       // the ship's <g> is placed with a transform attribute, so the sinking motion goes on a wrapper around it
-      const g = Art.shipG(sh.id, sh.len, pl.first, pl.vertical, sinking ? sh.cls.replace(" sinking", "") : sh.cls, true);
+      const g = Art.shipG(sh.id, sh.len, pl.first, pl.vertical, sinking ? sh.cls.replace(" sinking", "") : sh.cls, true, G.n);
       return sinking ? `<g class="sinking">${g}</g>` : g;
     }).join("");
     G.shipKey = key;
@@ -139,9 +170,9 @@ function paint(G, o) {
 function resetGrid(G) { G.st.fill(-1); G.shipKey = ""; }
 function cellFromPoint(G, x, y) {
   const r = G.sea.getBoundingClientRect();
-  const col = Math.floor(((x - r.left) / r.width) * 10), row = Math.floor(((y - r.top) / r.height) * 10);
-  if (col < 0 || col > 9 || row < 0 || row > 9) return -1;
-  return row * 10 + col;
+  const n = G.n, col = Math.floor(((x - r.left) / r.width) * n), row = Math.floor(((y - r.top) / r.height) * n);
+  if (col < 0 || col >= n || row < 0 || row >= n) return -1;
+  return row * n + col;
 }
 const isMobile = () => innerWidth < 900;
 
@@ -214,14 +245,19 @@ const P = {
 };
 let tour = null;           // the guided first game's coach (js/coach.js), made at boot
 
+/** The fleet to hide now: the room's (online / pass-the-phone), the Daily's and guided game's (official), else Settings. */
 function fleetFor() {
-  if (P.snap && P.snap.pub) return { fleet: P.snap.pub.fleet, noTouch: P.snap.pub.opts.noTouch };
-  if (P.daily) return { fleet: E.FLEETS.hasbro, noTouch: false };
-  return { fleet: E.FLEETS[S.edition], noTouch: S.noTouch && !P.guided };
+  if (P.snap && P.snap.pub) { const o = E.normOpts(P.snap.pub.opts); return { fleet: P.snap.pub.fleet, noTouch: o.noTouch, n: o.size, opts: o }; }
+  const o = E.normOpts(P.daily || P.guided ? { edition: P.daily ? "hasbro" : S.edition } : rulesOpts());
+  return { fleet: E.fleetOf(o), noTouch: o.noTouch, n: o.size, opts: o };
 }
-function newPlacing(seat) {
+const fleetKey = (o) => [o.size, o.fleet, o.edition, o.noTouch ? 1 : 0].join("/");
+function newPlacing(seat, fresh) {
   const f = fleetFor();
-  P.placing = { ships: AI.randomFleet(f.fleet, f.noTouch, Math.random), sel: -1, fleet: f.fleet, noTouch: f.noTouch, seat: seat || 0 };
+  // Settings → "Start with my last fleet": the fleet you last hid under these rules, if it is still legal
+  const L = store.lastFleet;
+  const keep = !fresh && S.keepFleet && !P.daily && !P.guided && (seat || 0) === 0 && L && L.key === fleetKey(f.opts) && L.ships && !E.fleetError(L.ships, f.fleet, f.noTouch, f.n);
+  P.placing = { ships: keep ? L.ships.map((c) => c.slice()) : AI.randomFleet(f.fleet, f.noTouch, Math.random, f.n), sel: -1, fleet: f.fleet, noTouch: f.noTouch, n: f.n, opts: f.opts, seat: seat || 0 };
   P.find = null; scheduleFind();
 }
 function stopLocal() {
@@ -385,7 +421,7 @@ function saveLocal() {
 }
 function localRoom(seats, names, options) {
   const g = P.gen;
-  const room = createLocal({ game, seats, options, names, botDelayMs: 650 });
+  const room = createLocal({ game, seats, options, names, botDelayMs: botMs() });
   room.on("change", (snap) => { if (g === P.gen) onSnap(snap); });
   room.on("error", (e) => toast((e && e.message) || String(e)));
   P.room = room;
@@ -437,11 +473,17 @@ function shotLog(pub) {
   return out;
 }
 function shipName(fleet, id) { const f = fleet.find((s) => s.id === id); return f ? f.name : id; }
+/** "Carrier, Battleship, …"; identical ships counted ("Cruiser ×2"). */
+function fleetSummary(fleet) {
+  const out = [];
+  fleet.forEach((s) => { const o = out.find((x) => x.name === s.name); if (o) o.k++; else out.push({ name: s.name, k: 1 }); });
+  return out.map((x) => x.name + (x.k > 1 ? " ×" + x.k : "")).join(", ");
+}
 function describe(pub, ent) {
-  const who = nameOf(ent.seat), x = ent.x;
-  if (!x.h) return { cls: "miss", text: `${who}: ${LABEL(x.c)} miss` };
-  if (x.k) return { cls: "sunk", text: `${who}: ${LABEL(x.c)} sank the ${shipName(pub.fleet, x.k)}!` };
-  return { cls: "hit", text: `${who}: ${LABEL(x.c)} hit${x.s ? " · " + shipName(pub.fleet, x.s) : ""}` };
+  const who = nameOf(ent.seat), x = ent.x, n = E.sizeOf(pub);
+  if (!x.h) return { cls: "miss", text: `${who}: ${LABEL(x.c, n)} miss` };
+  if (x.k) return { cls: "sunk", text: `${who}: ${LABEL(x.c, n)} sank the ${shipName(pub.fleet, x.k)}!` };
+  return { cls: "hit", text: `${who}: ${LABEL(x.c, n)} hit${x.s ? " · " + shipName(pub.fleet, x.s) : ""}` };
 }
 
 function renderPlay() {
@@ -466,22 +508,23 @@ function renderPlacing(sn) {
   if (!P.placing || (P.mode === "online" && sn && sn.pub && P.placing.fleet !== sn.pub.fleet && JSON.stringify(P.placing.fleet) !== JSON.stringify(sn.pub.fleet))) newPlacing(me());
   const pl = P.placing;
   mineZoom(false);
+  sizeGrid(big, pl.n); sizeGrid(small, pl.n);
   $("#tab-play").classList.add("placing");
   $("#status").innerHTML = P.mode === "pass" ? `<b>${esc(nameOf(P.view))}</b> hides a fleet` : "Hide your fleet";
   $("#pbar").innerHTML = `<span class="muted" style="white-space:nowrap">Place ships</span>` + oppLine();
   capCard(null, 0);
-  const err = E.fleetError(pl.ships, pl.fleet, pl.noTouch);
+  const err = E.fleetError(pl.ships, pl.fleet, pl.noTouch, pl.n);
   const ships = pl.ships.map((cells, i) => ({ id: pl.fleet[i].id, len: pl.fleet[i].len, cells, cls: (i === pl.sel ? "pick" : "") + (P.drag && P.drag.i === i && P.drag.bad ? " bad" : "") }));
   big.el.classList.add("placing");
-  paint(big, { state: new Array(100).fill(0), ships });
+  paint(big, { state: zeros(big), ships });
   // the small grid shows the fleet chips on phone; keep it quiet while placing
   $("#mineHead").textContent = "Fleet";
-  paint(small, { state: new Array(100).fill(0), ships: pl.ships.map((cells, i) => ({ id: pl.fleet[i].id, len: pl.fleet[i].len, cells })) });
+  paint(small, { state: zeros(small), ships: pl.ships.map((cells, i) => ({ id: pl.fleet[i].id, len: pl.fleet[i].len, cells })) });
   const f = P.find;
-  const findHtml = f ? `<span class="chip" style="background:${rg(f.pct)}">${f.mean.toFixed(0)} shots</span> <span class="muted" style="font-size:12px">better hidden than ${Math.round(f.pct * 100)}%</span>` : `<span class="muted" style="font-size:12px">measuring…</span>`;
+  const findHtml = f && f.pct == null ? `<span class="chip">${f.mean.toFixed(0)} shots</span> <span class="muted" style="font-size:12px">for Density</span>` : f ? `<span class="chip" style="background:${rg(f.pct)}">${f.mean.toFixed(0)} shots</span> <span class="muted" style="font-size:12px">better hidden than ${Math.round(f.pct * 100)}%</span>` : `<span class="muted" style="font-size:12px">measuring…</span>`;
   $("#info").innerHTML = `
     <div class="row" style="font-size:12px;color:var(--muted)">Drag a ship, or tap it to turn it.</div>
-    <div class="tray">${pl.fleet.map((s, i) => `<button data-pick="${i}" class="${i === pl.sel ? "on" : ""}">${Art.shipIcon(s.id, s.len)}<span>${esc(s.short)}</span></button>`).join("")}</div>
+    <div class="tray${pl.fleet.length > 5 ? " many" : ""}">${pl.fleet.map((s, i) => `<button data-pick="${i}" class="${i === pl.sel ? "on" : ""}">${Art.shipIcon(s.id, s.len)}<span>${esc(s.short)}</span></button>`).join("")}</div>
     <div class="row" style="gap:6px"><span style="font-size:12px;font-weight:650">Findable</span>${qBtn("find")}${findHtml}</div>
     <div class="row"><button class="btn small" data-act="rotate">Turn</button><button class="btn small" data-act="random">Random</button><button class="btn primary grow" data-act="ready" ${err ? "disabled" : ""}>Ready</button></div>`;
   $("#log").innerHTML = "";
@@ -494,10 +537,12 @@ function scheduleFind() {
   P.findT = setTimeout(() => {
     if (g !== P.gen || !P.placing) return;
     const pl = P.placing;
-    if (E.fleetError(pl.ships, pl.fleet, pl.noTouch)) return;
-    const opts = { named: S.named, noTouch: pl.noTouch };
-    let tot = 0; const G = 40;
+    if (E.fleetError(pl.ships, pl.fleet, pl.noTouch, pl.n)) return;
+    const opts = { named: pl.opts.named, noTouch: pl.noTouch, size: pl.n };
+    let tot = 0; const G = pl.n === 12 ? 24 : 40;
     for (let i = 0; i < G; i++) tot += SIM.shotsToSink("hard", pl.fleet, pl.ships, opts, Math.random);
+    // "better hidden than" compares with fleets measured on the official board and fleet only
+    if (!isStd(pl.opts)) { P.find = { mean: tot / G, pct: null }; if (tab === "play" && P.placing === pl) renderPlay(); return; }
     let ref = LAB.fleetMeans.hard.means;
     if (pl.noTouch && LAB.variants && LAB.variants.noTouch) {
       // the reference fleets were measured with touching allowed; rescale them to the no-touch average
@@ -512,20 +557,21 @@ function scheduleFind() {
 }
 
 function shiftInto(len, vertical, r, c) {
-  r = Math.max(0, Math.min(r, vertical ? 10 - len : 9));
-  c = Math.max(0, Math.min(c, vertical ? 9 : 10 - len));
-  return E.lineCells(r, c, vertical ? 1 : 0, len);
+  const n = P.placing.n;
+  r = Math.max(0, Math.min(r, vertical ? n - len : n - 1));
+  c = Math.max(0, Math.min(c, vertical ? n - 1 : n - len));
+  return E.lineCells(r, c, vertical ? 1 : 0, len, n);
 }
 function tryShip(i, cells) {
   const pl = P.placing, next = pl.ships.slice();
   next[i] = cells;
-  return E.fleetError(next, pl.fleet, pl.noTouch) ? null : next;
+  return E.fleetError(next, pl.fleet, pl.noTouch, pl.n) ? null : next;
 }
 function rotateSel() {
   const pl = P.placing;
   if (pl.sel < 0) pl.sel = 0;
-  const i = pl.sel, cells = pl.ships[i], len = cells.length, p = Art.cellsToPlacement(cells);
-  const [r, c] = E.rc(p.first), v = !p.vertical;
+  const i = pl.sel, cells = pl.ships[i], len = cells.length, p = Art.cellsToPlacement(cells, pl.n);
+  const [r, c] = E.rc(p.first, pl.n), v = !p.vertical;
   for (let d = 0; d < len; d++) for (const s of [1, -1]) {
     const rr = v ? r - d * s : r, cc = v ? c : c - d * s;
     const cand = shiftInto(len, v, rr, cc);
@@ -536,8 +582,8 @@ function rotateSel() {
   toast("No room to turn it there.");
 }
 function moveSelTo(cell) {
-  const pl = P.placing, i = pl.sel, cells = pl.ships[i], p = Art.cellsToPlacement(cells);
-  const [r, c] = E.rc(cell);
+  const pl = P.placing, i = pl.sel, cells = pl.ships[i], p = Art.cellsToPlacement(cells, pl.n);
+  const [r, c] = E.rc(cell, pl.n);
   const cand = shiftInto(cells.length, p.vertical, r, c);
   const next = cand && tryShip(i, cand);
   if (next) { pl.ships = next; P.find = null; scheduleFind(); FX.play("place"); renderPlay(); }
@@ -551,7 +597,7 @@ big.sea.addEventListener("pointerdown", (ev) => {
   if (c < 0) return;
   const pl = P.placing, i = pl.ships.findIndex((s) => s.includes(c));
   if (i < 0) { P.drag = null; return; }
-  const p = Art.cellsToPlacement(pl.ships[i]);
+  const p = Art.cellsToPlacement(pl.ships[i], pl.n);
   P.drag = { i, off: pl.ships[i].slice().sort((a, b) => a - b).indexOf(c), start: c, cur: c, moved: false, orig: pl.ships[i], vertical: p.vertical, bad: false };
   try { big.sea.setPointerCapture(ev.pointerId); } catch (e) {}
   ev.preventDefault();
@@ -562,11 +608,11 @@ big.sea.addEventListener("pointermove", (ev) => {
   const c = cellFromPoint(big, ev.clientX, ev.clientY);
   if (c < 0 || c === d.cur) return;
   d.cur = c; d.moved = true;
-  const pl = P.placing, len = d.orig.length, [r, cc] = E.rc(c);
+  const pl = P.placing, len = d.orig.length, [r, cc] = E.rc(c, pl.n);
   const cand = shiftInto(len, d.vertical, d.vertical ? r - d.off : r, d.vertical ? cc : cc - d.off);
   if (!cand) return;
   pl.ships[d.i] = cand; pl.sel = d.i;
-  d.bad = !!E.fleetError(pl.ships, pl.fleet, pl.noTouch);
+  d.bad = !!E.fleetError(pl.ships, pl.fleet, pl.noTouch, pl.n);
   renderPlay();
 });
 function endDrag() {
@@ -575,7 +621,7 @@ function endDrag() {
   P.drag = null;
   const pl = P.placing;
   if (d.moved) {
-    if (E.fleetError(pl.ships, pl.fleet, pl.noTouch)) { pl.ships[d.i] = d.orig; FX.play("error"); toast(pl.noTouch ? "Ships can't overlap or touch." : "Ships can't overlap."); }
+    if (E.fleetError(pl.ships, pl.fleet, pl.noTouch, pl.n)) { pl.ships[d.i] = d.orig; FX.play("error"); toast(pl.noTouch ? "Ships can't overlap or touch." : "Ships can't overlap."); }
     else { P.find = null; scheduleFind(); FX.play("place"); }
   } else if (pl.sel === d.i) rotateSel();
   else pl.sel = d.i;
@@ -589,10 +635,11 @@ function renderWaiting(sn) {
   big.el.classList.remove("placing"); $("#tab-play").classList.remove("placing");
   const mine = sn.mine && sn.mine.ships;
   const fleet = sn.pub.fleet;
+  sizeGrid(big, E.sizeOf(sn.pub)); sizeGrid(small, E.sizeOf(sn.pub));
   $("#status").textContent = "Waiting…";
   $("#pbar").innerHTML = `<span class="grow">Waiting for <b>${esc(nameOf(1 - me()))}</b> to hide a fleet</span>`;
-  paint(big, { state: new Array(100).fill(0), ships: (mine || []).map((cells, i) => ({ id: fleet[i].id, len: fleet[i].len, cells })) });
-  paint(small, { state: new Array(100).fill(0) });
+  paint(big, { state: zeros(big), ships: (mine || []).map((cells, i) => ({ id: fleet[i].id, len: fleet[i].len, cells })) });
+  paint(small, { state: zeros(small) });
   pegTray(null);
   $("#info").innerHTML = `<div class="msg">Fleet hidden.</div><div class="muted" style="font-size:13px">The game starts when both fleets are in.</div>${P.mode === "online" ? `<div class="row"><button class="btn small" data-act="leave">Leave room</button></div>` : ""}`;
 }
@@ -615,7 +662,7 @@ function pegTray(pub, my) {
 // ---------------- battle
 function fleetChips(pub, board) {
   const hits = (id) => pub.shots[board].filter((x) => x.s === id).length;
-  return `<div class="fleet">${pub.fleet.map((s) => tallyChip(s, pub.sunk[board].includes(s.id), hits(s.id))).join("")}</div>`;
+  return `<div class="fleet${pub.fleet.length > 5 ? " many" : ""}">${pub.fleet.map((s) => tallyChip(s, pub.sunk[board].includes(s.id), hits(s.id))).join("")}</div>`;
 }
 // one ship in the tally: icon, name, hits so far. On a phone a hit ship shows its count under the icon instead of
 // its name (the icon says which ship), so five counts fit on a 320px lid without running into each other.
@@ -647,7 +694,8 @@ function capCard(pub, my) {
 }
 function renderBattle(sn) {
   big.el.classList.remove("placing"); $("#tab-play").classList.remove("placing");
-  const pub = sn.pub, my = me(), opp = 1 - my;
+  const pub = sn.pub, my = me(), opp = 1 - my, n = E.sizeOf(pub);
+  sizeGrid(big, n); sizeGrid(small, n);
   const K = D.knowledge(pub, opp), h = D.heat(K);
   const myTurn = pub.phase === "fire" && pub.turn === my && (P.mode !== "pass" || P.cover == null) && (P.mode !== "online" || sn.myTurn);
   const need = pub.need || 1;
@@ -697,7 +745,7 @@ function renderBattle(sn) {
   // status
   const st = $("#status");
   if (pub.phase === "over") st.innerHTML = pub.winner === my ? "<b>You win</b>" : esc(nameOf(pub.winner)) + " wins";
-  else if (myTurn) st.innerHTML = `<b>Your turn</b>${pub.opts.salvo ? ` · ${pub.shotsLeft} shot${pub.shotsLeft > 1 ? "s" : ""}` : ""}`;
+  else if (myTurn) st.innerHTML = `<b>Your turn</b>${pub.opts.salvo ? ` · ${pub.shotsLeft} shot${pub.shotsLeft > 1 ? "s" : ""}` : pub.opts.again && pub.shots[opp].length && pub.shots[opp][pub.shots[opp].length - 1].h ? " · shoot again" : ""}`;
   else st.textContent = `${nameOf(pub.turn)} is aiming…`;
 
   // info panel
@@ -709,16 +757,16 @@ function renderBattle(sn) {
   if (dt) msg += `<div class="msg sub ${dt.cls}" style="font-size:12px;margin-top:-4px">${esc(dt.text)}</div>`;
   let aim = "";
   if (pub.phase === "fire" && myTurn && !help) {
-    aim = `<div class="aim">${P.sel.length ? `<span class="cellname">${P.sel.length === 1 ? LABEL(P.sel[0]) : P.sel.length + "/" + need}</span><span class="of">${need > 1 ? "picked" : "tap again or Fire"}</span>` : `<span class="of">${P.daily ? "Daily game · no heatmap" : P.mode === "computer" && !P.guided && !P.helped ? "Heatmap off · rated game" : "Heatmap off"}</span>`}</div>`;
+    aim = `<div class="aim">${P.sel.length ? `<span class="cellname">${P.sel.length === 1 ? LABEL(P.sel[0], n) : P.sel.length + "/" + need}</span><span class="of">${need > 1 ? "picked" : "tap again or Fire"}</span>` : `<span class="of">${P.daily ? "Daily game · no heatmap" : P.mode === "computer" && !P.guided && !P.helped ? "Heatmap off · rated game" : "Heatmap off"}</span>`}</div>`;
   } else if (pub.phase === "fire" && myTurn) {
     if (P.sel.length) {
       const tot = P.sel.reduce((a, c) => a + h.p[c], 0);
-      const label = P.sel.length === 1 ? LABEL(P.sel[0]) : P.sel.length + "/" + need;
+      const label = P.sel.length === 1 ? LABEL(P.sel[0], n) : P.sel.length + "/" + need;
       const bestSum = need > 1 ? D.topK(K, need).reduce((a, c) => a + h.p[c], 0) : h.max;
       const t = bestSum ? tot / bestSum : 0;
       aim = `<div class="aim"><span class="cellname">${label}</span><span class="chance" style="color:${rg(t)}">${need > 1 ? (tot).toFixed(1) + " hits" : pct(h.p[P.sel[0]])}</span><span class="of">${need > 1 ? "expected" : "hit chance"} ${qBtn("chance")}</span></div>`;
     } else {
-      aim = `<div class="aim"><span class="of">Best: <b style="color:var(--text)">${h.best >= 0 ? LABEL(h.best) : "-"}</b> · ${pct(h.max)} ${qBtn("chance")}</span></div>`;
+      aim = `<div class="aim"><span class="of">Best: <b style="color:var(--text)">${h.best >= 0 ? LABEL(h.best, n) : "-"}</b> · ${pct(h.max)} ${qBtn("chance")}</span></div>`;
     }
   } else if (pub.phase === "fire") {
     aim = lastStudy && help ? `<div class="aim"><span class="of">Your last shot: ${pct(lastStudy.got)} · best was ${pct(lastStudy.best)}</span></div>` : `<div class="aim"></div>`;
@@ -763,6 +811,7 @@ function pubUpTo(pub, log, i) {
 function renderReview(sn) {
   big.el.classList.remove("placing"); $("#tab-play").classList.remove("placing");
   const pub = sn.pub, my = me(), opp = 1 - my, log = shotLog(pub), R = P.review;
+  sizeGrid(big, E.sizeOf(pub)); sizeGrid(small, E.sizeOf(pub));
   const cur = pubUpTo(pub, log, R.i), e = R.i ? log[R.i - 1] : null;
   const K = D.knowledge(cur, opp), myK = D.knowledge(cur, my);
   // the other fleet, shown faintly from the start (local games; online only what was sunk)
@@ -837,8 +886,10 @@ $("#bigGrid").addEventListener("click", (ev) => {
 
 async function ready() {
   const pl = P.placing;
-  if (E.fleetError(pl.ships, pl.fleet, pl.noTouch)) return;
-  store.lastFleet = { edition: S.edition, ships: pl.ships }; save();
+  if (E.fleetError(pl.ships, pl.fleet, pl.noTouch, pl.n)) return;
+  store.lastFleet = { edition: pl.opts.edition, size: pl.n, fleet: pl.opts.fleet, key: fleetKey(pl.opts), ships: pl.ships };
+  if (isStd(pl.opts)) store.stdFleet = store.lastFleet; // the Lab's "Your fleet" test is measured on the official board
+  save();
   const a = E.placeMove(pl.ships);
   if (P.mode === "online") {
     if (P.readySent) return;
@@ -872,7 +923,7 @@ let pickOpp = null;
 function newGameSheet() {
   pickOpp = pickOpp || P.mode;
   const lv = AI.LEVELS.map((l) => `<button data-level="${l}" class="${S.level === l ? "on" : ""}">${AI.NAMES[l]}</button>`).join("");
-  const ruleBits = [S.edition === "mb1967" ? "1967 fleet" : "Hasbro fleet", S.salvo ? (S.salvoAll ? "Salvo (all at once)" : "Salvo") : "One shot a turn", S.named ? null : "unnamed hits", S.noTouch ? "no touching" : null].filter(Boolean).join(" · ");
+  const ruleBits = ruleLine(rulesOpts());
   openSheet("new", `<h2>New game</h2>
     <div class="opp3"><button data-opp="computer" class="${pickOpp === "computer" ? "on" : ""}">Computer</button><button data-opp="pass" class="${pickOpp === "pass" ? "on" : ""}">Pass phone</button><button data-opp="online" class="${pickOpp === "online" ? "on" : ""}">Online</button><button data-opp="daily" class="${pickOpp === "daily" ? "on" : ""}">Daily</button></div>
     ${pickOpp === "computer" ? `<h3>Computer ${qBtn("strong")}</h3><div class="seg">${lv}</div><div class="capline">${captainFace(S.level, 30)}<span><b>${esc(CAPTAINS[S.level].name)}</b> · sinks a fleet in about ${LAB.shots[S.level].mean.toFixed(0)} shots<br><i>“${esc(CAPTAINS[S.level].hello)}”</i></span></div>` : ""}
@@ -921,7 +972,7 @@ function showEnd() {
       <span>Hits</span><b>${hits} of ${mine.length} (${mine.length ? Math.round((hits / mine.length) * 100) : 0}%)</b>
       <span>${esc(nameOf(opp))}'s shots</span><b>${theirs.length}</b>
       ${quality}
-      <span>Density computer</span><b>${LAB.shots.hard.mean.toFixed(0)} shots avg</b>
+      ${isStd(pub.opts) ? `<span>Density computer</span><b>${LAB.shots.hard.mean.toFixed(0)} shots avg</b>` : ""}
       ${endRecordLine()}
     </div>
     ${P.mode === "computer" && !P.guided ? `<div class="capline">${captainFace(P.level, 30)}<i>“${esc(won ? CAPTAINS[P.level].lose : CAPTAINS[P.level].win)}”</i></div>` : ""}
@@ -945,7 +996,8 @@ async function openOnline() {
   stopLocal();
   P.daily = false; P.guided = false; P.helped = false; P.hist = []; P.review = null; P.gameId = Date.now(); P.counted = 0;
   if (tour) tour.stop();
-  const room = createOnline({ game, gameId: "battleship", botDelayMs: 800 });
+  const room = createOnline({ game, gameId: "battleship", botDelayMs: Math.max(botMs(), 300) });
+
   room.on("change", (snap) => { if (P.online === room) onSnap(snap); });
   room.on("error", (m) => toast(m));
   P.online = room; P.room = room; P.mode = "online"; P.snapKey = null; P.sending = false;
@@ -959,7 +1011,7 @@ function renderLobby() {
   if (sn.status === "joining") { openSheet("lobby", `<h2>Joining…</h2><div class="muted">Waiting for the host to seat you.</div><div class="actions"><button class="btn" data-act="leave">Cancel</button></div>`); return; }
   const seats = (sn.seats || []).map((s, i) => `<div class="seatrow"><span class="dot${s.kind === "computer" || (s.kind === "human" && s.online) ? " on" : ""}"></span><span style="flex:1">${s.kind === "empty" ? '<span class="muted">Open seat</span>' : esc(s.name || "Player " + (i + 1))}${i === sn.mySeat ? " (you)" : ""}${s.isHost ? ' <span class="muted">host</span>' : ""}</span>${sn.isHost && i !== sn.mySeat ? (s.kind === "empty" ? `<button class="btn small" data-seat="${i}" data-kind="computer">Computer</button>` : s.kind === "computer" ? `<button class="btn small" data-seat="${i}" data-kind="empty">Open</button>` : "") : ""}</div>`).join("");
   const o = sn.options || {};
-  const ruleBits = [o.edition === "mb1967" ? "1967 fleet" : "Hasbro fleet", o.salvo ? (o.salvoAll ? "Salvo (all at once)" : "Salvo") : "One shot a turn", o.named === false ? "unnamed hits" : null, o.noTouch ? "no touching" : null].filter(Boolean).join(" · ");
+  const ruleBits = ruleLine(o);
   openSheet("lobby", `<h2>Room</h2><div class="code">${esc(sn.code || "")}</div>
     <div class="muted" style="font-size:13px;margin:4px 0 10px">Your friend opens this page, taps Play → Change → Online, and types this code.</div>
     ${seats}<div class="muted" style="font-size:12px;margin-top:8px">${esc(ruleBits)}</div>
@@ -983,7 +1035,8 @@ document.addEventListener("click", async (ev) => {
   if (act === "again") { closeSheet(); return startNew(P.mode === "online" ? "computer" : P.mode); }
   if (act === "endsheet") return showEnd();
   if (act === "rotate") return rotateSel();
-  if (act === "random") { newPlacing(P.placing ? P.placing.seat : 0); FX.play("slide"); return renderPlay(); }
+  if (act === "random") { newPlacing(P.placing ? P.placing.seat : 0, true); FX.play("slide"); return renderPlay(); }
+
   if (act === "ready") return ready();
   if (act === "best") { const sn = curSnap(); const { K } = heatNow(); P.sel = D.topK(K, sn.pub.need || 1); if (P.mode === "computer") P.helped = true; return renderPlay(); }
   if (act === "undo") return undo();
@@ -1022,19 +1075,22 @@ document.addEventListener("click", async (ev) => {
 // ================================================================== PAPER (real-table companion)
 const paperGrid = buildGrid($("#paperGrid"));
 function paperNew() {
-  store.paper = { opts: { edition: S.edition, named: S.named, noTouch: S.noTouch }, shots: [] };
+  const o = E.normOpts(rulesOpts());
+  store.paper = { opts: { edition: o.edition, named: o.named, noTouch: o.noTouch, size: o.size, fleet: o.fleet }, shots: [] };
   save();
 }
+const paperFleet = () => E.fleetOf(store.paper.opts);
 if (!store.paper || !store.paper.opts) paperNew();
 let paperSel = -1, paperConfirm = false;
 function paperK() {
-  const pp = store.paper, fleet = E.FLEETS[pp.opts.edition];
+  const pp = store.paper, fleet = paperFleet();
   const pub = { fleet, opts: pp.opts, shots: [pp.shots], sunk: [pp.shots.filter((x) => x.k).map((x) => x.k)] };
   return D.knowledge(pub, 0);
 }
 function renderPaper() {
   if (tab !== "paper") return;
-  const pp = store.paper, fleet = E.FLEETS[pp.opts.edition];
+  const pp = store.paper, fleet = paperFleet(), n = E.sizeOf(pp.opts);
+  sizeGrid(paperGrid, n);
   const K = paperK(), h = D.heat(K);
   const wrecks = [];
   if (pp.opts.named) K.sunk.forEach((id) => {
@@ -1043,7 +1099,7 @@ function renderPaper() {
   });
   paint(paperGrid, { state: K.cell, heat: S.pheat ? h : null, best: h.best, sel: paperSel >= 0 ? [paperSel] : [], ships: wrecks, firing: true, pctText: S.pheat && !isMobile() });
   const hitsOf = (id) => pp.shots.filter((x) => x.s === id).length;
-  $("#ppbar").innerHTML = `<div class="fleet">${fleet.map((s) => tallyChip(s, K.sunk.includes(s.id), pp.opts.named ? hitsOf(s.id) : 0)).join("")}</div><span style="white-space:nowrap">Shots <b>${pp.shots.length}</b></span>`;
+  $("#ppbar").innerHTML = `<div class="fleet${fleet.length > 5 ? " many" : ""}">${fleet.map((s) => tallyChip(s, K.sunk.includes(s.id), pp.opts.named ? hitsOf(s.id) : 0)).join("")}</div><span style="white-space:nowrap">Shots <b>${pp.shots.length}</b></span>`;
   $("#status").innerHTML = "Paper game " + qBtn("paper");
   const pin = $("#pinfo");
   const allSunk = K.sunk.length >= fleet.length;
@@ -1058,28 +1114,29 @@ function renderPaper() {
     return;
   }
   if (paperSel < 0) {
-    pin.innerHTML = `<div class="aim"><span class="of">Best shot</span><span class="cellname">${h.best >= 0 ? LABEL(h.best) : "-"}</span><span class="chance" style="color:var(--good)">${h.best >= 0 ? pct(h.max) : ""}</span>${qBtn("chance")}</div>
+    pin.innerHTML = `<div class="aim"><span class="of">Best shot</span><span class="cellname">${h.best >= 0 ? LABEL(h.best, n) : "-"}</span><span class="chance" style="color:var(--good)">${h.best >= 0 ? pct(h.max) : ""}</span>${qBtn("chance")}</div>
       ${lostHtml || `<div class="muted" style="font-size:13px">Tap the square you called, then the answer you got.</div>`}
       <div class="row"><button class="btn small" data-pp="undo" ${pp.shots.length ? "" : "disabled"}>Undo</button><button class="btn small" data-pp="new">${paperConfirm ? "Sure? Tap again" : "New game"}</button><span class="tog" style="margin-left:auto">${switchHtml("pheat", S.pheat)} Heatmap</span></div>
-      <div class="muted" style="font-size:12px">${esc(fleet.map((s) => s.name).join(", "))}${pp.opts.named ? "" : " · hits not named"}${pp.opts.noTouch ? " · no touching" : ""}</div>`;
+      <div class="muted" style="font-size:12px">${n !== 10 ? n + "×" + n + " · " : ""}${esc(fleetSummary(fleet))}${pp.opts.named ? "" : " · hits not named"}${pp.opts.noTouch ? " · no touching" : ""}</div>`;
     return;
   }
   const marked = pp.shots.find((x) => x.c === paperSel);
-  const open = fleet.filter((s) => !K.sunk.includes(s.id));
+  // identical ships (sea battle: two Cruisers, four Boats) get one button: any of them is the same answer
+  const open = fleet.filter((s) => !K.sunk.includes(s.id)).filter((s, i, a) => a.findIndex((x) => x.name === s.name && x.len === s.len) === i);
   const shipBtns = (kind) => open.map((s) => `<button class="btn small" data-pp="${kind}" data-id="${s.id}">${esc(s.short)}</button>`).join("");
-  pin.innerHTML = `<div class="aim"><span class="cellname">${LABEL(paperSel)}</span><span class="chance">${marked ? (marked.h ? "hit" : "miss") : pct(h.p[paperSel])}</span><span class="of">${marked ? "already marked" : "hit chance"}</span></div>
+  pin.innerHTML = `<div class="aim"><span class="cellname">${LABEL(paperSel, n)}</span><span class="chance">${marked ? (marked.h ? "hit" : "miss") : pct(h.p[paperSel])}</span><span class="of">${marked ? "already marked" : "hit chance"}</span></div>
     ${marked ? `<div class="row"><button class="btn" data-pp="clear">Clear this square</button><button class="btn" data-pp="cancel">Cancel</button></div>` : `
     <div class="row"><button class="btn" data-pp="miss">Miss</button>${pp.opts.named ? "" : `<button class="btn" data-pp="hit">Hit</button>`}<button class="btn small" data-pp="cancel" style="margin-left:auto">Cancel</button></div>
     <div class="row"><span class="muted" style="font-size:12px">${pp.opts.named ? "Hit:" : "Hit and sank:"}</span>${shipBtns(pp.opts.named ? "hitship" : "sank")}</div>`}`;
 }
 $("#paperGrid").addEventListener("click", (ev) => {
   const b = ev.target.closest(".cell"); if (!b) return;
-  if (paperK().sunk.length >= E.FLEETS[store.paper.opts.edition].length) return void FX.play("error"); // all sunk: nothing left to answer
+  if (paperK().sunk.length >= paperFleet().length) return void FX.play("error"); // all sunk: nothing left to answer
   paperSel = +b.dataset.c; paperConfirm = false; renderPaper();
 });
 $("#pinfo").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-pp]"); if (!b) return;
-  const pp = store.paper, fleet = E.FLEETS[pp.opts.edition], k = b.dataset.pp;
+  const pp = store.paper, fleet = paperFleet(), k = b.dataset.pp;
   if (k === "new") { if (!paperConfirm) { paperConfirm = true; return renderPaper(); } paperConfirm = false; paperNew(); paperSel = -1; resetGrid(paperGrid); return renderPaper(); }
   paperConfirm = false;
   if (k === "undo") { pp.shots.pop(); resetGrid(paperGrid); }
@@ -1110,6 +1167,8 @@ $("#pinfo").addEventListener("click", (ev) => {
 
 // ================================================================== LAB
 let labFleetRes = null, labBusy = false;
+/** The last fleet you hid on the official board (saves from before board sizes have no key and are official). */
+const labFleet = () => store.stdFleet || (store.lastFleet && store.lastFleet.ships && !store.lastFleet.key ? store.lastFleet : null);
 function histSvg() {
   const colors = { easy: "#8d93a8", medium: "#f0b354", hard: "#6ea8fe" };
   const W = 600, H = 170, x0 = 30, x1 = W - 10, y0 = H - 22, xs = (n) => x0 + ((n - 17) / 83) * (x1 - x0);
@@ -1138,12 +1197,13 @@ function calibSvg() {
 function renderLab() {
   const L = LAB, nm = AI.NAMES;
   const strong = AI.LEVELS.slice().reverse().map((lv) => `<tr><td>${nm[lv]}</td><td class="n"><b>${L.shots[lv].mean.toFixed(1)}</b></td><td class="n">${L.shots[lv].p10}–${L.shots[lv].p90}</td><td class="n">${L.shots[lv].n.toLocaleString()}</td></tr>`).join("");
-  const modeName = { standard: "One shot", salvo: "Salvo", salvoAll: "Salvo, all at once" };
+  const modeName = { standard: "One shot", salvo: "Salvo", salvoAll: "Salvo, all at once", again: "Hit = shoot again" };
   const duels = L.duels.filter((d) => d.a !== d.b).map((d) => `<tr><td>${nm[d.a]} vs ${nm[d.b]}</td><td>${modeName[d.mode]}</td><td class="n" style="color:${rg(d.aWin)}">${Math.round(d.aWin * 100)}%</td></tr>`).join("");
   const firsts = L.duels.filter((d) => d.a === d.b).map((d) => `<tr><td>${modeName[d.mode]}</td><td class="n">${Math.round(d.firstWin * 100)}%</td></tr>`).join("");
   const styles = L.styles.map((r) => `<tr><td>${esc(r.label)}</td>${AI.LEVELS.slice().reverse().map((lv) => `<td class="n">${r[lv].toFixed(1)}</td>`).join("")}</tr>`).join("");
   const v = L.variants;
-  const fleetBox = store.lastFleet && store.lastFleet.ships ? `<div class="gbox"><div class="grid small" id="labGrid"></div></div>` : `<div class="muted" style="font-size:13px">Place a fleet in Play first.</div>`;
+  const LF = labFleet();
+  const fleetBox = LF ? `<div class="gbox"><div class="grid small" id="labGrid"></div></div>` : `<div class="muted" style="font-size:13px">Place a fleet in Play first.</div>`;
   const res = labFleetRes ? AI.LEVELS.slice().reverse().map((lv) => {
     const r = labFleetRes[lv]; return `<div style="margin:6px 0"><div class="row" style="justify-content:space-between;font-size:13px"><span>${nm[lv]}</span><span><b>${r.mean.toFixed(1)}</b> shots · better hidden than <b style="color:${rg(r.pct)}">${Math.round(r.pct * 100)}%</b></span></div><div class="bar2"><i style="width:${Math.round(r.pct * 100)}%;background:${rg(r.pct)}"></i></div></div>`;
   }).join("") : "";
@@ -1151,7 +1211,7 @@ function renderLab() {
     <section class="wide"><h2>How strong? ${qBtn("strong")}</h2>
       <table class="ftab"><thead><tr><th>Computer</th><th class="n">Avg shots</th><th class="n">Middle 80%</th><th class="n">Games</th></tr></thead><tbody>${strong}</tbody></table>
       ${histSvg()}<p class="note">Shots needed to sink all five ships of a random fleet. Fewer is stronger. Perfect play still needs 17.</p></section>
-    <section><h2>Your fleet ${qBtn("myfleet")}</h2><div class="mini">${fleetBox}<div>${res || ""}${store.lastFleet ? `<button class="btn small" id="labTest" ${labBusy ? "disabled" : ""}>${labBusy ? "Testing…" : labFleetRes ? "Test again" : "Test it"}</button>` : ""}</div></div></section>
+    <section><h2>Your fleet ${qBtn("myfleet")}</h2><div class="mini">${fleetBox}<div>${res || ""}${LF ? `<button class="btn small" id="labTest" ${labBusy ? "disabled" : ""}>${labBusy ? "Testing…" : labFleetRes ? "Test again" : "Test it"}</button>` : ""}</div></div></section>
     <section><h2>Is the heatmap honest? ${qBtn("calib")}</h2>${calibSvg()}<p class="note">Dots on the dashed line = the chance shown is the real hit rate.</p></section>
     <section><h2>Head to head ${qBtn("duel")}</h2><table class="ftab"><thead><tr><th>Match</th><th>Rules</th><th class="n">Wins</th></tr></thead><tbody>${duels}</tbody></table>
       <h2 style="margin-top:12px">Going first</h2><table class="ftab"><thead><tr><th>Equal computers</th><th class="n">First player wins</th></tr></thead><tbody>${firsts}</tbody></table>
@@ -1162,23 +1222,25 @@ function renderLab() {
     <section><h2>Rule switches</h2><table class="ftab"><thead><tr><th>Rules</th><th class="n">Density</th><th class="n">Hunt</th></tr></thead><tbody>
       <tr><td>Official</td><td class="n">${L.shots.hard.mean.toFixed(1)}</td><td class="n">${L.shots.medium.mean.toFixed(1)}</td></tr>
       <tr><td>Hits not named</td><td class="n">${v.unnamed.hard.mean.toFixed(1)}</td><td class="n">${v.unnamed.medium.mean.toFixed(1)}</td></tr>
-      <tr><td>Ships can't touch</td><td class="n">${v.noTouch.hard.mean.toFixed(1)}</td><td class="n">${v.noTouch.medium.mean.toFixed(1)}</td></tr></tbody></table>
-      <p class="note">No-touching makes fleets easier for a smart shooter: every sunk ship clears its whole border.</p></section>
+      <tr><td>Ships can't touch</td><td class="n">${v.noTouch.hard.mean.toFixed(1)}</td><td class="n">${v.noTouch.medium.mean.toFixed(1)}</td></tr>
+      ${[["size8", "8×8 board (4,3,3,2)"], ["size12", "12×12 board (+4, +3)"], ["small", "Small fleet (4,3,2)"], ["sea", "Sea battle fleet (10 ships)"]].filter(([k]) => v[k]).map(([k, l]) => `<tr><td>${l}</td><td class="n">${v[k].hard.mean.toFixed(1)}</td><td class="n">${v[k].medium.mean.toFixed(1)}</td></tr>`).join("")}</tbody></table>
+      <p class="note">No-touching makes fleets easier for a smart shooter: every sunk ship clears its whole border. Average shots to sink the whole fleet; Random needs the most on every board.</p></section>
   </div><p class="ver">Measured ${esc(L.made)} with tools/lab-data.js.</p>`;
   const pg = buildGrid($("#priorGrid"));
   const ph = D.heat(D.blank(E.FLEETS.hasbro));
-  paint(pg, { state: new Array(100).fill(0), heat: ph });
-  if (store.lastFleet && store.lastFleet.ships) {
-    const lg = buildGrid($("#labGrid")), fl = E.FLEETS[store.lastFleet.edition] || E.FLEETS.hasbro;
-    paint(lg, { state: new Array(100).fill(0), ships: store.lastFleet.ships.map((cells, i) => ({ id: fl[i].id, len: fl[i].len, cells })) });
+  paint(pg, { state: zeros(pg), heat: ph });
+  if (LF) {
+    const lg = buildGrid($("#labGrid")), fl = E.FLEETS[LF.edition] || E.FLEETS.hasbro;
+    paint(lg, { state: zeros(lg), ships: LF.ships.map((cells, i) => ({ id: fl[i].id, len: fl[i].len, cells })) });
   }
   const bt = $("#labTest");
   if (bt) bt.onclick = testFleet;
 }
 function testFleet() {
-  if (labBusy || !store.lastFleet) return;
+  const LF = labFleet();
+  if (labBusy || !LF) return;
   labBusy = true; renderLab();
-  const fl = E.FLEETS[store.lastFleet.edition] || E.FLEETS.hasbro, ships = store.lastFleet.ships;
+  const fl = E.FLEETS[LF.edition] || E.FLEETS.hasbro, ships = LF.ships;
   const res = {}, G = 60; let li = 0, g = 0, tot = 0;
   const step = () => {
     const lv = AI.LEVELS[li], until = performance.now() + 30;
@@ -1201,13 +1263,18 @@ function renderSettings() {
     <h2>Settings</h2>
     <h3>Rules (next game)</h3>
     <div class="setrow"><span class="lbl">Fleet names ${qBtn("edition")}</span>${seg("edition", [["hasbro", "Hasbro 2002+"], ["mb1967", "1967"]])}</div>
+    <div class="setrow"><span class="lbl">Board ${qBtn("size")}</span>${seg("size", [[8, "8×8"], [10, "10×10"], [12, "12×12"]])}</div>
+    <div class="setrow"><span class="lbl">Fleet ${qBtn("fleet")}</span>${seg("fleet", [["standard", "Standard"], ["small", "Small"], ["sea", "Sea battle"]])}</div>
     <div class="setrow"><span class="lbl">Salvo</span>${switchHtml("salvo", S.salvo)}</div>
     <div class="setrow"><span class="lbl">Salvo shots ${qBtn("salvoAll")}</span><div class="seg${S.salvo ? "" : " dis"}">${[[false, "One at a time"], [true, "All at once"]].map(([v, l]) => `<button data-set="salvoAll" data-v="${v}" class="${S.salvoAll === v ? "on" : ""}">${l}</button>`).join("")}</div></div>
-    <div class="setrow"><span class="lbl">Name the ship hit ${qBtn("named")}</span>${switchHtml("named", S.named)}</div>
-    <div class="setrow"><span class="lbl">Ships can't touch ${qBtn("noTouch")}</span>${switchHtml("noTouch", S.noTouch)}</div>
+    <div class="setrow"><span class="lbl">Hit = shoot again ${qBtn("again")}</span>${switchHtml("again", S.again && !S.salvo, S.salvo)}</div>
+    <div class="setrow"><span class="lbl">Name the ship hit ${qBtn("named")}</span>${switchHtml("named", S.named && S.fleet !== "sea", S.fleet === "sea")}</div>
+    <div class="setrow"><span class="lbl">Ships can't touch ${qBtn("noTouch")}</span>${switchHtml("noTouch", S.noTouch || S.fleet === "sea", S.fleet === "sea")}</div>
     <div class="setrow"><span class="lbl">Goes first</span>${seg("first", [["random", "Random"], ["0", "You"], ["1", "Other"]])}</div>
+    <div class="setrow"><span class="lbl">Start with my last fleet ${qBtn("keepFleet")}</span>${switchHtml("keepFleet", S.keepFleet)}</div>
     <h3>Computer</h3>
     <div class="setrow"><span class="lbl">Strength ${qBtn("strong")}</span>${seg("level", AI.LEVELS.map((l) => [l, AI.NAMES[l]]))}</div>
+    <div class="setrow"><span class="lbl">Speed ${qBtn("botSpeed")}</span>${seg("botSpeed", [["slow", "Slow"], ["normal", "Normal"], ["fast", "Fast"]])}</div>
     <h3>Help while playing</h3>
     <div class="setrow"><span class="lbl">Heatmap ${qBtn("heat")}</span>${switchHtml("heat", S.heat)}</div>
     <div class="setrow"><span class="lbl">Best-shot ring</span>${switchHtml("best", S.best)}</div>
@@ -1225,15 +1292,17 @@ function renderSettings() {
 document.addEventListener("click", (ev) => {
   const t = ev.target.closest("[data-set]"); if (!t) return;
   const k = t.dataset.set;
+  if (t.classList.contains("dis") && ["again", "named", "noTouch"].includes(k)) return; // fixed by Salvo or the sea-battle fleet
   if (t.dataset.v != null) {
     let v = t.dataset.v;
     if (k === "salvoAll") v = v === "true";
+    if (k === "size") v = +v;
     if (k === "first") v = v === "random" ? "random" : +v;
     S[k] = v;
   } else S[k] = !S[k];
   save();
   // a fleet not yet committed follows rule changes right away
-  if (["edition", "noTouch"].includes(k) && P.placing && !P.room) newPlacing(0);
+  if (["edition", "noTouch", "size", "fleet"].includes(k) && P.placing && !P.room) newPlacing(0);
   if (tab === "settings") renderSettings();
   if (tab === "play") renderPlay();
   if (tab === "paper") renderPaper();

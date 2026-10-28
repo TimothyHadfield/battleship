@@ -46,6 +46,9 @@
       s += '<ellipse cx="' + (W * 0.55) + '" cy="50" rx="34" ry="11" fill="#3b4354" stroke="#1d222d" stroke-width="2.5"/>';
       s += '<rect x="' + (W * 0.55 - 2) + '" y="36" width="4" height="10" fill="#1d222d"/>';
       s += '<path d="M14,50 l-6,-14 l8,0 z M14,50 l-6,14 l8,0 z" fill="#3a4152"/>';
+    } else if (kind === 'boat') { // one-square boat (sea battle fleet)
+      s += '<rect x="30" y="36" width="30" height="28" rx="6" fill="#9aa3b5" stroke="#2b3242" stroke-width="2.5"/>';
+      s += '<rect x="48" y="41" width="8" height="18" rx="2" fill="#3e5a7a"/>';
     } else { // patrol boat
       s += '<rect x="56" y="33" width="58" height="34" rx="7" fill="#9aa3b5" stroke="#2b3242" stroke-width="2.5"/>';
       s += '<rect x="96" y="38" width="12" height="24" rx="3" fill="#3e5a7a"/>';
@@ -55,6 +58,7 @@
   }
 
   function kindOf(id, len) {
+    if (len === 1) return 'boat';
     if (id === 'carrier' || len === 5) return 'carrier';
     if (id === 'battleship' || len === 4) return 'battleship';
     if (id === 'submarine') return 'submarine';
@@ -73,8 +77,9 @@
     return s;
   }
 
-  function shipG(id, len, firstCell, vertical, cls, withHoles) {
-    var r = Math.floor(firstCell / 10), c = firstCell % 10, W = len * 100, k = kindOf(id, len), g = 'hg' + (uid++);
+  function shipG(id, len, firstCell, vertical, cls, withHoles, n) {
+    n = n || 10;
+    var r = Math.floor(firstCell / n), c = firstCell % n, W = len * 100, k = kindOf(id, len), g = 'hg' + (uid++);
     var t = vertical ? 'translate(' + (c * 100 + 100) + ',' + (r * 100) + ') rotate(90)' : 'translate(' + (c * 100) + ',' + (r * 100) + ')';
     // [sheen on the upper edge, hull, keel shadow]; the sub is darker but still stands off the navy sea
     var fill = k === 'submarine' ? ['#98a3b8', '#6a758b', '#434c5f'] : ['#b4bccb', '#8791a5', '#5a6376'];
@@ -91,9 +96,9 @@
     return '<svg class="shipicon ' + (cls || '') + '" viewBox="0 0 ' + len * 100 + ' 100" aria-hidden="true">' + shipG(id, len, 0, false) + '</svg>';
   }
 
-  function cellsToPlacement(cells) {
+  function cellsToPlacement(cells, n) {
     var s = cells.slice().sort(function (a, b) { return a - b; });
-    return { first: s[0], vertical: s.length > 1 && s[1] - s[0] === 10 };
+    return { first: s[0], vertical: s.length > 1 && s[1] - s[0] === (n || 10) };
   }
 
   var ICON = '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#0f1117"/>' +

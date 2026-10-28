@@ -13,10 +13,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Battleship">
-<link rel="stylesheet" href="css/table.css?v=18">
-<link rel="stylesheet" href="css/profile.css?v=18">
-<link rel="stylesheet" href="css/coach.css?v=18">
-<link rel="stylesheet" href="css/style.css?v=18">
+<link rel="stylesheet" href="css/table.css?v=19">
+<link rel="stylesheet" href="css/profile.css?v=19">
+<link rel="stylesheet" href="css/coach.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=19">
 </head>
 <body>
 <div id="app">
@@ -86,7 +86,17 @@
       <p>You call one shot for each of your ships still afloat: five to start, one fewer for each of your ships that has been sunk. The current box has you call them one at a time, hearing each answer; the 1967 box has you call them all at once, then hear the answers.</p>
       <h3>Other switches</h3>
       <p><b>Don&rsquo;t name the ship</b> (the box&rsquo;s harder Salvo game): a hit is just &ldquo;hit&rdquo;; sinkings are still announced.<br><b>Ships can&rsquo;t touch</b> (a common house rule): no two ships side by side or corner to corner.</p>
+      <h3>House rules</h3>
+      <p>All off unless you turn them on in Settings; the computers play every one.<br><b>Hit = shoot again</b>: a hit earns another shot, a miss passes the turn (one-shot games, not Salvo).<br><b>Board</b>: 8&times;8 is a quick game without the Carrier; 12&times;12 adds a Frigate (4) and a Corvette (3).<br><b>Fleet</b>: Small is three ships (4, 3, 2). Sea battle is the pencil-and-paper fleet: one 4, two 3s, three 2s and four 1s; ships never touch and a hit is just &ldquo;hit&rdquo;.</p>
       <p><button class="btn" data-act="guided">Play a guided first game</button></p>
+      <h3>Videos</h3>
+      <ul class="vids">
+        <li><a href="https://www.youtube.com/watch?v=4gHJlYLomrs" target="_blank" rel="noopener">How To Play Battleship</a> <span class="muted">Gather Together Games</span></li>
+        <li><a href="https://www.youtube.com/watch?v=JKqEBKStFWU" target="_blank" rel="noopener">How To Play Battleship: Salvo Variation</a> <span class="muted">Gather Together Games</span></li>
+        <li><a href="https://www.youtube.com/watch?v=jMpbYpaKtao" target="_blank" rel="noopener">How to win at Battleship almost every time!</a> <span class="muted">Keith Galli &middot; the hit-chance map, like our heatmap</span></li>
+        <li><a href="https://www.youtube.com/watch?v=LbALFZoRrw8" target="_blank" rel="noopener">The Battleship Algorithm</a> <span class="muted">Vsauce2</span></li>
+        <li><a href="https://www.youtube.com/watch?v=ZBdajiTz48k" target="_blank" rel="noopener">I Analyzed All 30,093,975,536 Battleship Boards</a> <span class="muted">Ballpark Figures</span></li>
+      </ul>
       <p class="muted">Rules in our own words. Every number and its source: <a href="https://github.com/TimothyHadfield/battleship/blob/main/docs/rules-check.md">rules check</a>.</p>
     </div></section>
 
@@ -96,18 +106,18 @@
   <div class="tip" id="tip" hidden></div>
   <div class="toast" id="toast" hidden></div>
 </div>
-<script src="js/engine.js?v=18"></script>
-<script src="js/density.js?v=18"></script>
-<script src="js/ai.js?v=18"></script>
-<script src="js/sim.js?v=18"></script>
-<script src="js/art.js?v=18"></script>
-<script src="js/lab-data.js?v=18"></script>
-<script src="js/fx.js?v=18"></script>
-<script src="js/table.js?v=18"></script>
-<script src="js/fxgame.js?v=18"></script>
-<script src="js/profile.js?v=18"></script>
-<script src="js/coach.js?v=18"></script>
-<script src="js/pwa.js?v=18" data-version="18" defer></script>
-<script type="module" src="js/app.mjs?v=18"></script>
+<script src="js/engine.js?v=19"></script>
+<script src="js/density.js?v=19"></script>
+<script src="js/ai.js?v=19"></script>
+<script src="js/sim.js?v=19"></script>
+<script src="js/art.js?v=19"></script>
+<script src="js/lab-data.js?v=19"></script>
+<script src="js/fx.js?v=19"></script>
+<script src="js/table.js?v=19"></script>
+<script src="js/fxgame.js?v=19"></script>
+<script src="js/profile.js?v=19"></script>
+<script src="js/coach.js?v=19"></script>
+<script src="js/pwa.js?v=19" data-version="19" defer></script>
+<script type="module" src="js/app.mjs?v=19"></script>
 </body>
 </html>
