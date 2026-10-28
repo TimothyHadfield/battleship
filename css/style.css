@@ -454,3 +454,49 @@ input.codein { width: 110px; text-transform: uppercase; letter-spacing: .12em; f
   #tab-play .playmain, #tab-paper .playmain { flex: 0 0 min(calc(100dvh - 104px), 60%); }
   .pside { flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) 180px; }
 }
+
+/* ---- improvement pass (v17): My stats button, captains, Undo, replay, bigger hit / sink moments ---- */
+.top .bs-me { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 3px; border: 1px solid var(--line); border-radius: 99px; background: var(--card); font-size: 12px; font-weight: 650; color: var(--text); white-space: nowrap; min-height: 32px; }
+.top .bs-me small { color: var(--warm); font-weight: 700; font-size: 11px; }
+.top .bs-me svg { flex: 0 0 auto; border-radius: 50%; }
+@media (max-width: 379px) { .top .bs-me span { display: none; } .top .bs-me { padding: 3px; } }
+.oppseat .capface { flex: 0 0 auto; }
+.capline { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.capline b { color: var(--text); }
+.capline .capface { flex: 0 0 auto; }
+.warnline { margin-top: 10px; font-size: 13px; color: var(--warm); }
+.opp3 { grid-template-columns: repeat(4, 1fr); }
+.btn.undo { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 0 0 auto; }
+@media (max-width: 899px) { .btn.undo span { display: none; } .btn.undo { min-width: 40px; padding-left: 8px; padding-right: 8px; } }
+.pbar .oppseat.tbl-seat { flex-direction: row; align-items: center; }
+.revbtns { gap: 6px; flex-wrap: nowrap; }
+.revbtns .btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
+
+/* hit: an original painted burst over the square, bigger than the square, gone in 0.8 s */
+.cell.boom::after { content: ""; position: absolute; inset: -75%; z-index: 3; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,2 58,30 82,12 70,38 98,42 72,56 90,82 62,70 56,98 46,72 22,92 30,64 2,60 28,46 10,20 38,30' fill='%23ef6461'/%3E%3Cpolygon points='50,16 56,36 74,26 64,44 86,48 66,56 78,74 58,64 52,84 46,64 28,78 36,58 16,52 34,44 24,28 42,36' fill='%23f0b354'/%3E%3Ccircle cx='50' cy='50' r='12' fill='%23fff3c4'/%3E%3C/svg%3E") center / contain no-repeat;
+  animation: burst .8s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes burst { 0% { transform: scale(.15) rotate(-25deg); opacity: 0; } 18% { opacity: 1; } 55% { transform: scale(1) rotate(8deg); opacity: .95; } 100% { transform: scale(1.25) rotate(14deg); opacity: 0; } }
+.cell.boom { z-index: 2; }
+.cell.boom.best::after { border: 0; }
+
+/* sink: the ship lists, slides under and stays as the faint wreck (lid) / greyed hull (your fleet) */
+.sinking { transform-box: fill-box; transform-origin: 50% 100%; animation: sinkDown 1.6s cubic-bezier(.45,.05,.55,1) .35s both; }
+@keyframes sinkDown { 0% { transform: none; filter: drop-shadow(0 0 6px rgba(255,140,60,.95)); } 30% { transform: rotate(-7deg); filter: drop-shadow(0 0 9px rgba(255,120,50,.9)); } 65% { transform: rotate(5deg) translateY(6%); filter: drop-shadow(0 0 4px rgba(255,120,50,.5)); } 100% { transform: none; filter: none; } }
+.fx-noanim .cell.boom::after, .fx-noanim .sinking { animation: none !important; }
+.fx-noanim .cell.boom::after { display: none; }
+.fx-fast .cell.boom::after { animation-duration: .45s; }
+.fx-fast .sinking { animation-duration: .9s; animation-delay: .2s; }
+/* laptop: the computer's captain fills the space above your fleet (hidden on phones and against people) */
+.capcard { display: none; }
+@media (min-width: 900px) {
+  #tab-play .capcard:not([hidden]) { display: flex; grid-column: 2; grid-row: 1; align-self: start; align-items: center; gap: 12px; margin: 14px 12px 0 0; padding: 12px 14px;
+    border-radius: 12px; background: rgba(15,17,23,.72); border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  #tab-play .capcard .capface { flex: none; }
+  #tab-play .capcard div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  #tab-play .capcard b { font-size: 15px; color: var(--text); }
+  #tab-play .capcard span { font-size: 12px; color: var(--muted); }
+  #tab-play .capcard i { font-size: 13px; color: #e7dccb; margin-top: 4px; line-height: 1.35; }
+  #tab-play .capcard:not([hidden]) ~ .mine { grid-row: 2; }
+  #tab-play.mine-zoom .capcard { visibility: hidden; }
+}

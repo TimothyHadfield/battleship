@@ -1,11 +1,14 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
 import { createLocal, createOnline } from "./online.js?v=a3d0418b";
-import { makeGame } from "./game.mjs?v=14";
+import { makeGame } from "./game.mjs?v=17";
+import { BS_LEVELS, BS_ACHIEVEMENTS, dailyFleet, profileResult, quitResult } from "./profile-bs.mjs?v=17";
+import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./guide.mjs?v=17";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
+const Profile = window.Profile, COACH = window.COACH;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-27.15";
+const VERSION = "2026-10-27.17";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
@@ -26,10 +29,14 @@ const LABEL = (c) => E.label(c);
 
 // ------------------------------------------------------------------ storage
 const KEY = "battleship:v1";
-const DEF = { edition: "hasbro", salvo: false, salvoAll: false, named: true, noTouch: false, first: "random", level: "hard", heat: true, best: true, name: "", opp: "computer" };
+// heat: the Play heatmap. Off by default so games vs the computer count as rated; one tap on the Play panel
+// turns it on (that game then counts "with help"). pheat: the Paper tab's own heatmap (its whole point: on).
+const DEF = { edition: "hasbro", salvo: false, salvoAll: false, named: true, noTouch: false, first: "random", level: "hard", heat: false, pheat: true, best: true, name: "", opp: "computer" };
 let store = {};
 try { store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { store = {}; }
 const S = Object.assign({}, DEF, store.settings || {});
+// players from before My stats had the heatmap on by default: switched off once (Paper keeps it)
+if (!S.heatRated) { if (store.settings && store.settings.heat != null) S.pheat = !!store.settings.heat; S.heat = false; S.heatRated = 1; }
 function save() { try { store.settings = S; localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
 const rulesOpts = () => ({ edition: S.edition, salvo: S.salvo, salvoAll: S.salvoAll, named: S.named, noTouch: S.noTouch, first: S.first });
 
@@ -40,7 +47,7 @@ function toast(m) {
   clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 2600);
 }
 const TIPS = {
-  heat: "Brighter squares fit the ships still afloat in more ways, so they are more likely to hold one. The ring marks the single best square.",
+  heat: "Brighter squares fit the ships still afloat in more ways, so they are more likely to hold one. The ring marks the single best square. A game vs the computer with the heatmap on, Best or Undo counts in My stats as \"with help\" and doesn't change your Elo.",
   chance: "Out of every way the remaining ships could still sit, the share that covers this square. Checked over 1,000+ simulated games: when it says 30%, about 30% are hits.",
   find: "We let the Density computer hunt this exact fleet 40 times. More shots needed = better hidden. Compared with 300 random fleets.",
   strong: "Each computer fired at thousands of randomly placed fleets. Fewer shots to sink all five = stronger.",
@@ -70,6 +77,7 @@ document.addEventListener("click", (ev) => {
   const below = r.bottom + 8, h = tip.offsetHeight;
   tip.style.top = (below + h > innerHeight - 10 ? r.top - h - 8 : below) + "px";
 }, true);
+const UNDO_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>`;
 const qBtn = (k) => `<button class="q" data-q="${k}" aria-label="Why?">?</button>`;
 const switchHtml = (key, on, dis) => `<button class="switch${on ? " on" : ""}${dis ? " dis" : ""}" data-set="${key}" role="switch" aria-checked="${on}" aria-label="${key}"></button>`;
 // red→green for good/bad numbers; t in 0..1 (1 = good)
@@ -120,8 +128,10 @@ function paint(G, o) {
   const key = JSON.stringify(ships);
   if (key !== G.shipKey) {
     G.svg.innerHTML = ships.map((sh) => {
-      const pl = Art.cellsToPlacement(sh.cells);
-      return Art.shipG(sh.id, sh.len, pl.first, pl.vertical, sh.cls, true);
+      const pl = Art.cellsToPlacement(sh.cells), sinking = / sinking$/.test(sh.cls || "");
+      // the ship's <g> is placed with a transform attribute, so the sinking motion goes on a wrapper around it
+      const g = Art.shipG(sh.id, sh.len, pl.first, pl.vertical, sinking ? sh.cls.replace(" sinking", "") : sh.cls, true);
+      return sinking ? `<g class="sinking">${g}</g>` : g;
     }).join("");
     G.shipKey = key;
   }
@@ -194,11 +204,20 @@ const P = {
   placing: null,           // { ships:[cells], sel, fleet, noTouch, seat }
   sel: [], study: [], seen: [0, 0], endShown: false, cover: null, passT: null, lastMsg: null,
   find: null, findT: null, online: null, gen: 0,
+  level: S.level,          // the computer level of the game on the table
+  gameId: 0, counted: 0,   // one id per game, kept through Undo: the record counts each game once
+  helped: false,           // heatmap on while firing, Best or Undo used: counted "with help", not rated
+  guided: false,           // the guided first game: never counted
+  daily: false, dailyDate: "",
+  hist: [],                // Undo: the game as it stood at the start of each of your turns
+  review: null,            // end-of-game replay: { i } = shots shown so far
 };
+let tour = null;           // the guided first game's coach (js/coach.js), made at boot
 
 function fleetFor() {
   if (P.snap && P.snap.pub) return { fleet: P.snap.pub.fleet, noTouch: P.snap.pub.opts.noTouch };
-  return { fleet: E.FLEETS[S.edition], noTouch: S.noTouch };
+  if (P.daily) return { fleet: E.FLEETS.hasbro, noTouch: false };
+  return { fleet: E.FLEETS[S.edition], noTouch: S.noTouch && !P.guided };
 }
 function newPlacing(seat) {
   const f = fleetFor();
@@ -211,14 +230,43 @@ function stopLocal() {
   clearTimeout(P.passT);
   P.room = null; P.snap = null;
 }
-function startNew(mode) {
+// ---------------- My stats (shared _profile kit): what leaving the game on the table would record
+function dailyOn() { return P.daily && P.mode === "computer" && !!(P.room && P.room.state && P.room.state.phase !== "over"); }
+function quitPending() {
+  if (P.mode !== "computer" || P.daily || P.counted === P.gameId || !P.room || !P.room.state) return null;
+  return quitResult({ mode: "computer", level: P.level, pub: game.publicView(P.room.state), you: 0, helped: P.helped, guided: P.guided });
+}
+/** Leaving an unfinished game vs the computer after your first shot counts as a loss; a Daily once your fleet is in. */
+function abandonGame() {
+  if (dailyOn()) {
+    P.counted = P.gameId;
+    Profile.recordResult({ mode: "computer", level: "hard", won: false, daily: true, date: P.dailyDate, extra: { shots: 0, hits: 0, lost: 0, salvo: false } });
+    P.daily = false;
+    toast("Daily game left: counted as a loss");
+    return;
+  }
+  const res = quitPending();
+  if (!res) return;
+  P.counted = P.gameId;
+  Profile.recordResult(res);
+  toast("Game left: counted as a loss");
+}
+/** opts: { daily, dailyDate, guided } */
+function startNew(mode, opts = {}) {
+  abandonGame();
   stopLocal();
   if (store.local) { delete store.local; save(); }
   P.mode = mode; P.snapKey = null; P.view = 0; P.sending = false; P.sel = []; P.study = []; P.seen = [0, 0]; P.endShown = false; P.cover = null; P.lastMsg = null;
-  resetGrid(big); resetGrid(small); fxd.reset();
+  P.daily = !!opts.daily && mode === "computer"; P.dailyDate = P.daily ? opts.dailyDate : "";
+  P.guided = !!opts.guided && mode === "computer";
+  P.helped = false; P.hist = []; P.review = null; P.gameId = Date.now(); P.counted = 0;
+  P.level = P.daily ? "hard" : P.guided ? "easy" : S.level;
+  if (!P.guided && tour) tour.stop();
+  resetGrid(big); resetGrid(small); fxd.reset(); sinkSeen.clear();
   newPlacing(0);
   closeSheet();
   renderPlay();
+  paintMe();
 }
 
 // the seat whose eyes we draw for
@@ -237,7 +285,7 @@ function shortName(n) {
 }
 const nameOf = (seat) => {
   const sn = P.snap;
-  if (P.mode === "computer") return seat === 0 ? "You" : AI.NAMES[(sn && sn.pub && sn.pub.levels[1]) || S.level];
+  if (P.mode === "computer") return seat === 0 ? "You" : AI.NAMES[(sn && sn.pub && sn.pub.levels && sn.pub.levels[1]) || P.level || S.level];
   if (P.mode === "online" && sn && seat === sn.mySeat) return "You";
   if (sn && sn.seats && sn.seats[seat]) return shortName(sn.seats[seat].name || "Player " + (seat + 1));
   return "Player " + (seat + 1);
@@ -275,6 +323,13 @@ function onSnap(snap) {
       P.passT = setTimeout(() => { if (g === P.gen) showCover(pub.turn, false); }, 1300);
     }
   }
+  if (P.mode === "computer" && P.room && P.room.state) {
+    // Undo: remember the game at the start of each of your turns (the computer has answered by then)
+    const st = P.room.state, top = P.hist[P.hist.length - 1];
+    const n = st.shots ? st.shots[0].length + st.shots[1].length : -1;
+    if (st.phase === "fire" && st.turn === 0 && (!top || top.n !== n)) P.hist.push({ n, state: JSON.parse(JSON.stringify(st)), study: P.study.length });
+  }
+  if (snap.pub && snap.pub.phase === "over") recordEnd(snap);
   if (P.mode !== "online") saveLocal();
   renderPlay();
   // sounds come from what changed in the shot record, so every mode (and every online player) hears the same
@@ -286,11 +341,44 @@ function isMyTurn(sn) {
   return pub.phase === "fire" && pub.turn === me() && (P.mode !== "pass" || P.cover == null) && (P.mode !== "online" || sn.myTurn);
 }
 
+/** The finished game goes into My stats once (Undo or a redraw can't count it twice). Guided games never count. */
+let lastElo = null;
+function recordEnd(snap) {
+  if (P.counted === P.gameId || P.guided) return;
+  P.counted = P.gameId;
+  const you = P.mode === "pass" ? -1 : P.mode === "online" ? snap.mySeat : 0;
+  if (P.mode === "online" && (you == null || you < 0)) return;
+  const res = profileResult({ mode: P.mode, level: P.level, pub: snap.pub, you, daily: P.daily, helped: P.helped });
+  const r = Profile.recordResult(P.daily ? Object.assign(res, { date: P.dailyDate }) : res);
+  lastElo = r && r.elo;
+  paintMe();
+}
+function canUndo() {
+  if (P.mode !== "computer" || P.daily || !P.room || !P.room.state || P.room.state.phase !== "fire" || !P.hist.length) return false;
+  const st = P.room.state, n = st.shots[0].length + st.shots[1].length;
+  return P.hist.length >= 2 || P.hist[0].n !== n;
+}
+/** Undo (vs the computer, not in the Daily): back to the start of your previous turn. Counts as help. */
+function undo() {
+  if (!canUndo()) return;
+  const st = P.room.state, n = st.shots[0].length + st.shots[1].length;
+  if (P.hist[P.hist.length - 1].n === n) P.hist.pop(); // the position on the table now: go one further back
+  const back = P.hist[P.hist.length - 1];
+  const keep = { hist: P.hist, study: P.study.slice(0, back.study), gameId: P.gameId, guided: P.guided, level: P.level };
+  stopLocal();
+  P.helped = true; P.sel = []; P.endShown = false; P.snapKey = null;
+  Object.assign(P, keep);
+  resetGrid(big); resetGrid(small); fxd.reset();
+  P.seen = [back.state.shots[0].length, back.state.shots[1].length];
+  localRoom(["human", "computer"], ["You", AI.NAMES[P.level]], { resume: back.state });
+  FX.play("slide");
+}
+
 // computer and pass-the-phone games survive a reload (iPhone Safari reloads background tabs)
 function saveLocal() {
   if (!P.room || P.room.mode !== "local") return;
   const st = P.room.state;
-  if (st.phase === "fire") store.local = { mode: P.mode, state: st, study: P.study, seen: P.seen, view: P.view };
+  if (st.phase === "fire") store.local = { mode: P.mode, state: st, study: P.study, seen: P.seen, view: P.view, id: P.gameId, helped: P.helped, guided: P.guided, daily: P.daily ? P.dailyDate : "", level: P.level };
   else if (st.phase === "over" && store.local) delete store.local;
   else return;
   save();
@@ -307,12 +395,17 @@ function localRoom(seats, names, options) {
 function resumeLocal() {
   const L = store.local;
   if (!L || !L.state || L.state.phase !== "fire" || !["computer", "pass"].includes(L.mode)) return false;
+  // a Daily already counted (left on another tab, or yesterday's) isn't played on
+  if (L.daily && Profile.daily.played(L.daily)) { delete store.local; save(); return false; }
   try {
     stopLocal();
     P.mode = L.mode; P.snapKey = null; P.view = L.view || 0; P.sel = []; P.study = L.study || []; P.seen = L.seen || [0, 0];
     P.endShown = false; P.cover = null; P.lastMsg = null; P.placing = null;
+    P.gameId = L.id || Date.now(); P.counted = 0; P.helped = !!L.helped; P.guided = !!L.guided; P.hist = []; P.review = null;
+    P.daily = !!L.daily && P.mode === "computer" && !Profile.daily.played(L.daily); P.dailyDate = P.daily ? L.daily : "";
     resetGrid(big); resetGrid(small); closeSheet(); fxd.reset();
     const pass = P.mode === "pass", lv = L.state.levels || ["hard", S.level];
+    P.level = lv[1];
     if (pass) P.cover = L.state.turn; // no hand-over timer while the cover goes up
     localRoom(pass ? ["human", "human"] : ["human", "computer"], pass ? ["Player 1", "Player 2"] : ["You", AI.NAMES[lv[1]]], { resume: L.state });
     if (pass) showCover(L.state.turn, false);
@@ -357,13 +450,15 @@ function renderPlay() {
   const pub = sn && sn.pub;
   if (!pub || (pub.phase === "place" && !pub.placed[me()])) return renderPlacing(sn);
   if (pub.phase === "place") return renderWaiting(sn);
+  if (P.review && pub.phase === "over") return renderReview(sn);
+  P.review = null;
   renderBattle(sn);
 }
 
 function oppLine() {
   if (P.mode === "online") return `<span class="grow">Online${P.snap && P.snap.code ? " · <b>" + esc(P.snap.code) + "</b>" : ""}</span>`;
-  const who = P.mode === "pass" ? "a friend on this phone" : "the " + AI.NAMES[S.level] + " computer";
-  return `<span class="grow">vs <b>${esc(who)}</b></span><button class="btn small" data-act="newsheet">Change</button>`;
+  const who = P.mode === "pass" ? "a friend on this phone" : "the " + AI.NAMES[P.level] + " computer";
+  return `<span class="grow">${P.daily ? "Daily · " : P.guided ? "Guided · " : ""}vs <b>${esc(who)}</b></span><button class="btn small" data-act="newsheet">Change</button>`;
 }
 
 // ---------------- placing
@@ -374,6 +469,7 @@ function renderPlacing(sn) {
   $("#tab-play").classList.add("placing");
   $("#status").innerHTML = P.mode === "pass" ? `<b>${esc(nameOf(P.view))}</b> hides a fleet` : "Hide your fleet";
   $("#pbar").innerHTML = `<span class="muted" style="white-space:nowrap">Place ships</span>` + oppLine();
+  capCard(null, 0);
   const err = E.fleetError(pl.ships, pl.fleet, pl.noTouch);
   const ships = pl.ships.map((cells, i) => ({ id: pl.fleet[i].id, len: pl.fleet[i].len, cells, cls: (i === pl.sel ? "pick" : "") + (P.drag && P.drag.i === i && P.drag.bad ? " bad" : "") }));
   big.el.classList.add("placing");
@@ -527,6 +623,28 @@ function tallyChip(s, sunk, h) {
   const n = !sunk && h ? h : 0;
   return `<div class="fchip${sunk ? " sunk" : ""}${n ? " hashit" : ""}" title="${esc(s.name)}">${Art.shipIcon(s.id, s.len)}<span><i class="nm">${esc(s.short)}</i>${n ? ` <b class="hitn">${n}/${s.len}</b>` : ""}</span></div>`;
 }
+// A ship sunk this moment lists and goes down (about 1.6 s); redraws in that time keep it going, after it it lies still.
+const sinkSeen = new Map();
+function sinkCls(board, id, isNew, base) {
+  const k = board + ":" + id;
+  if (isNew) sinkSeen.set(k, Date.now());
+  const t = sinkSeen.get(k);
+  if (t == null) return base + (base === "wreck" ? " fadein" : "");
+  return Date.now() - t < 1700 ? base + " sinking" : base;
+}
+// laptop only: the computer's captain sits in the space above your fleet and says one line (start, a ship
+// sunk either way, the end). Hidden on phones (the face is on the name plate) and against people.
+function capCard(pub, my) {
+  const el = $("#capCard");
+  if (P.mode !== "computer") { el.hidden = true; el.innerHTML = ""; return; }
+  const c = CAPTAINS[P.level] || CAPTAINS.hard;
+  let line = c.hello;
+  if (pub && pub.phase === "over") line = pub.winner === my ? c.lose : c.win;
+  else if (pub) { const k = [...shotLog(pub)].reverse().find((e) => e.x.k); if (k) line = k.seat === my ? c.ouch : c.sank; }
+  const html = `${captainFace(P.level, 64)}<div><b>${esc(c.name)}</b><span>${esc(AI.NAMES[P.level])} computer</span><i>“${esc(line)}”</i></div>`;
+  if (el.innerHTML !== html) el.innerHTML = html;
+  el.hidden = false;
+}
 function renderBattle(sn) {
   big.el.classList.remove("placing"); $("#tab-play").classList.remove("placing");
   const pub = sn.pub, my = me(), opp = 1 - my;
@@ -547,31 +665,35 @@ function renderBattle(sn) {
   if (pub.opts.named) pub.sunk[opp].forEach((id) => {
     const f = pub.fleet.find((s) => s.id === id);
     const cells = K.shots.filter((x) => x.s === id).map((x) => x.c);
-    if (cells.length === f.len) wrecks.push({ id, len: f.len, cells, cls: "wreck fadein" });
+    // the ship you just sank lists and goes down; the ones sunk earlier just sit there
+    if (cells.length === f.len) wrecks.push({ id, len: f.len, cells, cls: sinkCls(opp, id, K.shots.some((x) => x.k === id && fresh[opp].has(x.c)), "wreck") });
   });
   if (pub.phase === "over" && P.mode !== "online" && P.room && P.room.state) {
     const all = P.room.state.ships[opp];
     pub.fleet.forEach((f, i) => { if (!pub.sunk[opp].includes(f.id)) wrecks.push({ id: f.id, len: f.len, cells: all[i], cls: "reveal fadein" }); });
   }
   const lastMine = pub.shots[opp].length ? pub.shots[opp][pub.shots[opp].length - 1].c : -1;
-  const showHeat = S.heat && pub.phase === "fire";
+  const help = S.heat && !P.daily; // heatmap, best ring and hit chances: off = a rated game
+  const showHeat = help && pub.phase === "fire";
+  if (showHeat && myTurn && P.mode === "computer") P.helped = true;
   paint(big, {
-    state: K.cell, heat: showHeat ? h : null, best: S.best && myTurn ? h.best : -1, sel: P.sel, last: lastMine,
+    state: K.cell, heat: showHeat ? h : null, best: help && S.best && myTurn ? h.best : -1, sel: P.sel, last: lastMine,
     fresh: fresh[opp], ships: wrecks, firing: myTurn, pctText: showHeat && !isMobile(),
   });
   // my fleet grid
   const myShips = (sn.mine && sn.mine.ships) || [];
   const myK = D.knowledge(pub, my);
   const lastTheirs = pub.shots[my].length ? pub.shots[my][pub.shots[my].length - 1].c : -1;
-  paint(small, { state: myK.cell, last: lastTheirs, fresh: fresh[my], ships: myShips.map((cells, i) => ({ id: pub.fleet[i].id, len: pub.fleet[i].len, cells, cls: pub.sunk[my].includes(pub.fleet[i].id) ? "sunk" : "" })) });
+  paint(small, { state: myK.cell, last: lastTheirs, fresh: fresh[my], ships: myShips.map((cells, i) => ({ id: pub.fleet[i].id, len: pub.fleet[i].len, cells, cls: pub.sunk[my].includes(pub.fleet[i].id) ? sinkCls(my, pub.fleet[i].id, pub.shots[my].some((x) => x.k === pub.fleet[i].id && fresh[my].has(x.c)), "sunk") : "" })) });
   $("#mineHead").textContent = P.mode === "pass" ? nameOf(my) + "'s fleet" : "Your fleet";
 
   // top bar
   const myShots = pub.shots[opp].length;
   // far side of the table: the opponent's seat (name plate) behind the back of their raised lid
   const theirTurn = pub.phase === "fire" && pub.turn === opp;
-  $("#pbar").innerHTML = `<span class="oppseat tbl-seat${theirTurn ? " is-turn" : ""}"><span class="tbl-plate">${esc(nameOf(opp))}</span></span>` + fleetChips(pub, opp) + `<span style="white-space:nowrap">Shots <b>${myShots}</b></span>`;
+  $("#pbar").innerHTML = `<span class="oppseat tbl-seat${theirTurn ? " is-turn" : ""}">${P.mode === "computer" ? captainFace(P.level, 22) : ""}<span class="tbl-plate">${esc(nameOf(opp))}</span></span>` + fleetChips(pub, opp) + `<span style="white-space:nowrap">Shots <b>${myShots}</b></span>`;
   pegTray(pub, my);
+  capCard(pub, my);
   // status
   const st = $("#status");
   if (pub.phase === "over") st.innerHTML = pub.winner === my ? "<b>You win</b>" : esc(nameOf(pub.winner)) + " wins";
@@ -586,7 +708,9 @@ function renderBattle(sn) {
   let msg = dm ? `<div class="msg ${dm.cls}">${esc(dm.text)}</div>` : `<div class="msg">${myTurn ? "Pick a square to fire at." : esc(nameOf(pub.turn)) + " fires first."}</div>`;
   if (dt) msg += `<div class="msg sub ${dt.cls}" style="font-size:12px;margin-top:-4px">${esc(dt.text)}</div>`;
   let aim = "";
-  if (pub.phase === "fire" && myTurn) {
+  if (pub.phase === "fire" && myTurn && !help) {
+    aim = `<div class="aim">${P.sel.length ? `<span class="cellname">${P.sel.length === 1 ? LABEL(P.sel[0]) : P.sel.length + "/" + need}</span><span class="of">${need > 1 ? "picked" : "tap again or Fire"}</span>` : `<span class="of">${P.daily ? "Daily game · no heatmap" : P.mode === "computer" && !P.guided && !P.helped ? "Heatmap off · rated game" : "Heatmap off"}</span>`}</div>`;
+  } else if (pub.phase === "fire" && myTurn) {
     if (P.sel.length) {
       const tot = P.sel.reduce((a, c) => a + h.p[c], 0);
       const label = P.sel.length === 1 ? LABEL(P.sel[0]) : P.sel.length + "/" + need;
@@ -597,21 +721,75 @@ function renderBattle(sn) {
       aim = `<div class="aim"><span class="of">Best: <b style="color:var(--text)">${h.best >= 0 ? LABEL(h.best) : "-"}</b> · ${pct(h.max)} ${qBtn("chance")}</span></div>`;
     }
   } else if (pub.phase === "fire") {
-    aim = lastStudy ? `<div class="aim"><span class="of">Your last shot: ${pct(lastStudy.got)} · best was ${pct(lastStudy.best)}</span></div>` : `<div class="aim"></div>`;
+    aim = lastStudy && help ? `<div class="aim"><span class="of">Your last shot: ${pct(lastStudy.got)} · best was ${pct(lastStudy.best)}</span></div>` : `<div class="aim"></div>`;
   } else {
     aim = `<div class="aim"><span class="of">Game over</span></div>`;
   }
   const canFire = myTurn && P.sel.length === need;
+  const undoBtn = P.mode === "computer" && !P.daily && pub.phase === "fire" ? `<button class="btn small undo" data-act="undo" ${canUndo() ? "" : "disabled"} aria-label="Undo your last turn" title="Undo your last turn">${UNDO_SVG}<span>Undo</span></button>` : "";
   const buttons = pub.phase === "over"
-    ? `<div class="row"><button class="btn small" data-act="endsheet">Result</button><button class="btn primary grow" data-act="again">New game</button></div>`
-    : `<div class="row"><button class="btn small" data-act="best" ${myTurn ? "" : "disabled"}>Best</button><button class="btn fire grow" data-act="fire" ${canFire ? "" : "disabled"}>Fire${need > 1 ? " " + P.sel.length + "/" + need : ""}</button></div>`;
+    ? `<div class="row"><button class="btn small grow" data-act="endsheet">Result</button><button class="btn small grow" data-act="review">Replay</button></div><div class="row"><button class="btn primary grow" data-act="again">New game</button></div>`
+    : `<div class="row">${P.daily ? "" : `<button class="btn small" data-act="best" ${myTurn ? "" : "disabled"}>Best</button>`}<button class="btn fire grow" data-act="fire" ${canFire ? "" : "disabled"}>Fire${need > 1 ? " " + P.sel.length + "/" + need : ""}</button>${undoBtn}</div>`;
   $("#info").innerHTML = msg + aim + buttons +
-    `<div class="row"><span class="tog">${switchHtml("heat", S.heat)} Heatmap ${qBtn("heat")}</span>${P.mode === "online" ? `<button class="btn small" data-act="leave" style="margin-left:auto">Leave</button>` : ""}</div>`;
+    (pub.phase === "over" && P.mode !== "online" ? "" : `<div class="row">${P.daily ? "" : `<span class="tog">${switchHtml("heat", S.heat)} Heatmap ${qBtn("heat")}</span>`}${P.mode === "online" ? `<button class="btn small" data-act="leave" style="margin-left:auto">Leave</button>` : ""}</div>`);
   $("#log").innerHTML = log.slice().reverse().map((e) => {
     const d = describe(pub, e);
     return `<li class="${d.cls}">${esc(d.text).replace(/(hit[^<]*|sank[^<]*)$/, (m) => `<span class="${d.cls === "sunk" ? "k" : "h"}">${m}</span>`)}</li>`;
   }).join("");
   if (pub.phase === "over" && !P.endShown) { P.endShown = true; setTimeout(() => showEnd(), 900); }
+}
+
+// ---------------- replay: step through a finished game shot by shot, with the hit chance each shot had
+function startReview() {
+  const sn = curSnap();
+  if (!sn || !sn.pub || sn.pub.phase !== "over") return;
+  mineZoom(false);
+  const log = shotLog(sn.pub);
+  P.review = { i: 0, n: log.length };
+  resetGrid(big); resetGrid(small);
+  renderPlay();
+}
+function stepReview(act) {
+  const R = P.review; if (!R) return;
+  R.i = act === "revfirst" ? 0 : act === "revlast" ? R.n : Math.max(0, Math.min(R.n, R.i + (act === "revnext" ? 1 : -1)));
+  renderPlay();
+}
+/** The public record cut to the first i shots of the log. */
+function pubUpTo(pub, log, i) {
+  const p = Object.assign({}, pub, { shots: [[], []], sunk: [[], []], phase: "fire" });
+  for (let j = 0; j < i; j++) { const e = log[j], b = 1 - e.seat; p.shots[b].push(e.x); if (e.x.k) p.sunk[b].push(e.x.k); }
+  return p;
+}
+function renderReview(sn) {
+  big.el.classList.remove("placing"); $("#tab-play").classList.remove("placing");
+  const pub = sn.pub, my = me(), opp = 1 - my, log = shotLog(pub), R = P.review;
+  const cur = pubUpTo(pub, log, R.i), e = R.i ? log[R.i - 1] : null;
+  const K = D.knowledge(cur, opp), myK = D.knowledge(cur, my);
+  // the other fleet, shown faintly from the start (local games; online only what was sunk)
+  const wrecks = [];
+  const all = P.mode !== "online" && P.room && P.room.state && P.room.state.ships ? P.room.state.ships[opp] : null;
+  pub.fleet.forEach((f, i) => {
+    const sunkNow = cur.sunk[opp].includes(f.id);
+    if (all) wrecks.push({ id: f.id, len: f.len, cells: all[i], cls: sunkNow ? "wreck" : "reveal" });
+    else if (sunkNow && pub.opts.named) { const cells = K.shots.filter((x) => x.s === f.id).map((x) => x.c); if (cells.length === f.len) wrecks.push({ id: f.id, len: f.len, cells, cls: "wreck" }); }
+  });
+  paint(big, { state: K.cell, ships: wrecks, last: e && e.seat === my ? e.x.c : -1 });
+  const myShips = (sn.mine && sn.mine.ships) || [];
+  paint(small, { state: myK.cell, last: e && e.seat === opp ? e.x.c : -1, ships: myShips.map((cells, i) => ({ id: pub.fleet[i].id, len: pub.fleet[i].len, cells, cls: cur.sunk[my].includes(pub.fleet[i].id) ? "sunk" : "" })) });
+  pegTray(cur, my);
+  $("#pbar").innerHTML = `<span class="oppseat tbl-seat"><span class="tbl-plate">${esc(nameOf(opp))}</span></span>` + fleetChips(cur, opp) + `<span style="white-space:nowrap">Shots <b>${cur.shots[opp].length}</b></span>`;
+  $("#status").innerHTML = `Replay`;
+  let line = `<div class="msg">Start: both fleets hidden.</div>`;
+  if (e) {
+    const d = describe(pub, e);
+    // the chance that square had just before the shot, and the best square's then
+    const before = D.knowledge(pubUpTo(pub, log, R.i - 1), 1 - e.seat), h = D.heat(before);
+    line = `<div class="msg ${d.cls}">${esc(d.text)}</div><div class="aim"><span class="of">Hit chance then <b style="color:${rg(h.max ? h.p[e.x.c] / h.max : 0)}">${pct(h.p[e.x.c])}</b> · best ${pct(h.max)}</span></div>`;
+  }
+  $("#info").innerHTML = `<div class="row" style="font-size:12px;color:var(--muted)">Shot <b style="color:var(--text)">${R.i}</b> of ${R.n}</div>${line}
+    <div class="row revbtns"><button class="btn small" data-act="revfirst" aria-label="First" ${R.i ? "" : "disabled"}>|‹</button><button class="btn small" data-act="revprev" aria-label="Back" ${R.i ? "" : "disabled"}>‹ Back</button><button class="btn small primary" data-act="revnext" aria-label="Next" ${R.i < R.n ? "" : "disabled"}>Next ›</button><button class="btn small" data-act="revlast" aria-label="Last" ${R.i < R.n ? "" : "disabled"}>›|</button></div>
+    <div class="row"><button class="btn small" data-act="revclose">Close replay</button></div>`;
+  $("#log").innerHTML = log.slice(0, R.i).reverse().map((x) => { const d = describe(pub, x); return `<li class="${d.cls}">${esc(d.text)}</li>`; }).join("");
 }
 
 function heatNow() {
@@ -669,9 +847,13 @@ async function ready() {
     if (!r.ok) toast(r.message || "Not sent."); return;
   }
   if (!P.room) {
-    const opts = Object.assign(rulesOpts(), { levels: ["hard", S.level] });
+    let opts = Object.assign(rulesOpts(), { levels: ["hard", P.level] });
+    // Daily: the official rules, you fire first, today's fleet (the same for everyone). Guided game: same rules
+    // against Random, with a fleet placed so the lesson has something to find.
+    if (P.daily) opts = { edition: "hasbro", salvo: false, salvoAll: false, named: true, noTouch: false, first: 0, levels: ["hard", "hard"], fixed: [null, dailyFleet(AI, E.FLEETS.hasbro, Profile.daily.rng(P.dailyDate, "fleet"))] };
+    else if (P.guided) opts = { edition: S.edition, salvo: false, salvoAll: false, named: true, noTouch: false, first: 0, levels: ["hard", "easy"], fixed: [null, guidedFleet()] };
     const seats = P.mode === "pass" ? ["human", "human"] : ["human", "computer"];
-    const names = P.mode === "pass" ? ["Player 1", "Player 2"] : ["You", AI.NAMES[S.level]];
+    const names = P.mode === "pass" ? ["Player 1", "Player 2"] : ["You", AI.NAMES[P.level]];
     localRoom(seats, names, opts);
   }
   P.placing = null;
@@ -692,13 +874,33 @@ function newGameSheet() {
   const lv = AI.LEVELS.map((l) => `<button data-level="${l}" class="${S.level === l ? "on" : ""}">${AI.NAMES[l]}</button>`).join("");
   const ruleBits = [S.edition === "mb1967" ? "1967 fleet" : "Hasbro fleet", S.salvo ? (S.salvoAll ? "Salvo (all at once)" : "Salvo") : "One shot a turn", S.named ? null : "unnamed hits", S.noTouch ? "no touching" : null].filter(Boolean).join(" · ");
   openSheet("new", `<h2>New game</h2>
-    <div class="opp3"><button data-opp="computer" class="${pickOpp === "computer" ? "on" : ""}">Computer</button><button data-opp="pass" class="${pickOpp === "pass" ? "on" : ""}">Pass phone</button><button data-opp="online" class="${pickOpp === "online" ? "on" : ""}">Online</button></div>
-    ${pickOpp === "computer" ? `<h3>Computer ${qBtn("strong")}</h3><div class="seg">${lv}</div><div class="muted" style="font-size:12px;margin-top:6px">Sinks a fleet in about ${LAB.shots[S.level].mean.toFixed(0)} shots on average.</div>` : ""}
+    <div class="opp3"><button data-opp="computer" class="${pickOpp === "computer" ? "on" : ""}">Computer</button><button data-opp="pass" class="${pickOpp === "pass" ? "on" : ""}">Pass phone</button><button data-opp="online" class="${pickOpp === "online" ? "on" : ""}">Online</button><button data-opp="daily" class="${pickOpp === "daily" ? "on" : ""}">Daily</button></div>
+    ${pickOpp === "computer" ? `<h3>Computer ${qBtn("strong")}</h3><div class="seg">${lv}</div><div class="capline">${captainFace(S.level, 30)}<span><b>${esc(CAPTAINS[S.level].name)}</b> · sinks a fleet in about ${LAB.shots[S.level].mean.toFixed(0)} shots<br><i>“${esc(CAPTAINS[S.level].hello)}”</i></span></div>` : ""}
+    ${pickOpp === "daily" ? `<h3>Daily game</h3><div class="muted" style="font-size:13px">Today's hidden fleet is the same for everyone. You fire first against Density, official rules, no heatmap or Undo. Fewer shots is better.</div>
+       <div style="font-size:13px;margin-top:6px">Today: <b>${dailyWord()}</b> · streak <b>${Profile.daily.streak().cur}</b></div>` : ""}
+    ${pickOpp !== "online" && pickOpp !== "daily" && (dailyOn() || quitPending()) ? `<div class="warnline">${dailyOn() ? "Your Daily game" : "The game on the table"} will count as a loss.</div>` : ""}
+    ${pickOpp === "daily" && !dailyOn() && quitPending() && !Profile.daily.played() ? `<div class="warnline">The game on the table will count as a loss.</div>` : ""}
     ${pickOpp === "online" ? `<h3>Your name</h3><input type="text" id="netName" maxlength="20" value="${esc(S.name)}" placeholder="Name">
        <div class="actions"><button class="btn primary" data-act="create">Create room</button></div>
        <h3>Join a friend</h3><div class="row"><input type="text" class="codein" id="netCode" maxlength="5" placeholder="CODE" autocapitalize="characters" autocomplete="off"><button class="btn" data-act="join">Join</button></div>` : ""}
-    <h3>Rules</h3><div class="row" style="font-size:13px"><span class="muted">${esc(ruleBits)}</span><button class="btn small" data-act="gosettings">Change</button></div>
-    ${pickOpp !== "online" ? `<div class="actions"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="start">Start</button></div>` : `<div class="actions"><button class="btn" data-act="close">Cancel</button></div>`}`);
+    ${pickOpp !== "daily" ? `<h3>Rules</h3><div class="row" style="font-size:13px"><span class="muted">${esc(ruleBits)}</span><button class="btn small" data-act="gosettings">Change</button></div>` : ""}
+    ${pickOpp === "daily" ? `<div class="actions"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="daily" ${Profile.daily.played() && !dailyOn() ? "disabled" : ""}>${dailyOn() ? "Back to it" : "Start"}</button></div>`
+      : pickOpp !== "online" ? `<div class="actions"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="start">Start</button></div>` : `<div class="actions"><button class="btn" data-act="close">Cancel</button></div>`}`);
+}
+function dailyWord() {
+  if (dailyOn()) return "in progress";
+  const r = Profile.daily.result();
+  if (!r) return "not played yet";
+  return r.r === "w" ? `won${r.score ? " in " + r.score + " shots" : ""}` : "lost";
+}
+/** Today's Daily game: today's fleet against Density (the same for everyone), you fire first. Once a day. */
+function startDaily() {
+  if (dailyOn()) { showTab("play"); return toast("Your Daily game is on the table"); }
+  if (Profile.daily.played()) { Profile.openPanel({ tab: "daily" }); return; }
+  if (P.online) { const room = P.online; P.online = null; room.leave().catch(() => {}); }
+  showTab("play");
+  startNew("computer", { daily: true, dailyDate: Profile.daily.date() });
+  toast("Daily game: hide your fleet, then find today's");
 }
 
 function showEnd() {
@@ -720,15 +922,29 @@ function showEnd() {
       <span>${esc(nameOf(opp))}'s shots</span><b>${theirs.length}</b>
       ${quality}
       <span>Density computer</span><b>${LAB.shots.hard.mean.toFixed(0)} shots avg</b>
+      ${endRecordLine()}
     </div>
-    <div class="actions"><button class="btn" data-act="close">See boards</button>${P.mode === "online" ? `<button class="btn primary" data-act="leave">Leave room</button>` : `<button class="btn primary" data-act="again">New game</button>`}</div>`);
+    ${P.mode === "computer" && !P.guided ? `<div class="capline">${captainFace(P.level, 30)}<i>“${esc(won ? CAPTAINS[P.level].lose : CAPTAINS[P.level].win)}”</i></div>` : ""}
+    <div class="actions"><button class="btn" data-act="close">See boards</button><button class="btn" data-act="review">Replay</button>${P.mode === "online" ? `<button class="btn primary" data-act="leave">Leave room</button>` : `<button class="btn primary" data-act="again">New game</button>`}</div>`);
+}
+/** One line under the result: Elo change (rated), "with help", Daily, guided. */
+function endRecordLine() {
+  if (P.mode !== "computer") return "";
+  if (P.guided) return `<span>My stats</span><b class="muted" style="font-weight:500">guided game, not counted</b>`;
+  if (P.daily) return `<span>Daily game</span><b>streak ${Profile.daily.streak().cur}</b>`;
+  if (P.helped) return `<span>My stats</span><b class="muted" style="font-weight:500">with help, Elo unchanged</b>`;
+  if (lastElo) return `<span>Your Elo</span><b>${lastElo.after} <span style="color:${lastElo.change >= 0 ? "var(--good)" : "var(--bad)"}">${lastElo.change >= 0 ? "+" : ""}${lastElo.change}</span></b>`;
+  return "";
 }
 
 // ---------------- online
 async function openOnline() {
   if (P.online) return P.online;
+  if (P.mode !== "online") abandonGame(); // a game vs the computer left for online counts as a loss
   const g = ++P.gen;
   stopLocal();
+  P.daily = false; P.guided = false; P.helped = false; P.hist = []; P.review = null; P.gameId = Date.now(); P.counted = 0;
+  if (tour) tour.stop();
   const room = createOnline({ game, gameId: "battleship", botDelayMs: 800 });
   room.on("change", (snap) => { if (P.online === room) onSnap(snap); });
   room.on("error", (m) => toast(m));
@@ -769,7 +985,12 @@ document.addEventListener("click", async (ev) => {
   if (act === "rotate") return rotateSel();
   if (act === "random") { newPlacing(P.placing ? P.placing.seat : 0); FX.play("slide"); return renderPlay(); }
   if (act === "ready") return ready();
-  if (act === "best") { const sn = curSnap(); const { K } = heatNow(); P.sel = D.topK(K, sn.pub.need || 1); return renderPlay(); }
+  if (act === "best") { const sn = curSnap(); const { K } = heatNow(); P.sel = D.topK(K, sn.pub.need || 1); if (P.mode === "computer") P.helped = true; return renderPlay(); }
+  if (act === "undo") return undo();
+  if (act === "review") { closeSheet(); return startReview(); }
+  if (act === "revprev" || act === "revnext" || act === "revfirst" || act === "revlast") return stepReview(act);
+  if (act === "revclose") { P.review = null; resetGrid(big); resetGrid(small); return renderPlay(); }
+  if (act === "daily") { closeSheet(); return startDaily(); }
   if (act === "fire") return fire();
   if (act === "create" || act === "join") {
     const name = ($("#netName") && $("#netName").value.trim()) || S.name || "Player";
@@ -820,7 +1041,7 @@ function renderPaper() {
     const f = fleet.find((s) => s.id === id), cells = pp.shots.filter((x) => x.s === id).map((x) => x.c);
     if (f && cells.length === f.len) wrecks.push({ id, len: f.len, cells, cls: "wreck" });
   });
-  paint(paperGrid, { state: K.cell, heat: S.heat ? h : null, best: h.best, sel: paperSel >= 0 ? [paperSel] : [], ships: wrecks, firing: true, pctText: S.heat && !isMobile() });
+  paint(paperGrid, { state: K.cell, heat: S.pheat ? h : null, best: h.best, sel: paperSel >= 0 ? [paperSel] : [], ships: wrecks, firing: true, pctText: S.pheat && !isMobile() });
   const hitsOf = (id) => pp.shots.filter((x) => x.s === id).length;
   $("#ppbar").innerHTML = `<div class="fleet">${fleet.map((s) => tallyChip(s, K.sunk.includes(s.id), pp.opts.named ? hitsOf(s.id) : 0)).join("")}</div><span style="white-space:nowrap">Shots <b>${pp.shots.length}</b></span>`;
   $("#status").innerHTML = "Paper game " + qBtn("paper");
@@ -839,7 +1060,7 @@ function renderPaper() {
   if (paperSel < 0) {
     pin.innerHTML = `<div class="aim"><span class="of">Best shot</span><span class="cellname">${h.best >= 0 ? LABEL(h.best) : "-"}</span><span class="chance" style="color:var(--good)">${h.best >= 0 ? pct(h.max) : ""}</span>${qBtn("chance")}</div>
       ${lostHtml || `<div class="muted" style="font-size:13px">Tap the square you called, then the answer you got.</div>`}
-      <div class="row"><button class="btn small" data-pp="undo" ${pp.shots.length ? "" : "disabled"}>Undo</button><button class="btn small" data-pp="new">${paperConfirm ? "Sure? Tap again" : "New game"}</button><span class="tog" style="margin-left:auto">${switchHtml("heat", S.heat)} Heatmap</span></div>
+      <div class="row"><button class="btn small" data-pp="undo" ${pp.shots.length ? "" : "disabled"}>Undo</button><button class="btn small" data-pp="new">${paperConfirm ? "Sure? Tap again" : "New game"}</button><span class="tog" style="margin-left:auto">${switchHtml("pheat", S.pheat)} Heatmap</span></div>
       <div class="muted" style="font-size:12px">${esc(fleet.map((s) => s.name).join(", "))}${pp.opts.named ? "" : " · hits not named"}${pp.opts.noTouch ? " · no touching" : ""}</div>`;
     return;
   }
@@ -990,6 +1211,8 @@ function renderSettings() {
     <h3>Help while playing</h3>
     <div class="setrow"><span class="lbl">Heatmap ${qBtn("heat")}</span>${switchHtml("heat", S.heat)}</div>
     <div class="setrow"><span class="lbl">Best-shot ring</span>${switchHtml("best", S.best)}</div>
+    <h3>Learn</h3>
+    <div class="setrow"><span class="lbl">Guided first game</span><button class="btn small" data-act="guided">Start</button></div>
     <h3>Sound &amp; effects</h3><div id="fxSet"></div>
     <p class="ver">Version ${VERSION}</p></div>`;
   const fx = FX.renderSettings($("#fxSet"));
@@ -1016,6 +1239,49 @@ document.addEventListener("click", (ev) => {
   if (tab === "paper") renderPaper();
 });
 
+// ================================================================== My stats (shared _profile kit)
+Profile.init({
+  game: "battleship", levels: BS_LEVELS, achievements: BS_ACHIEVEMENTS, name: S.name, draws: false,
+  modes: { help: { name: "Computer, with help" }, pass: { name: "Pass the phone" }, online: { name: "Online" } },
+  daily: { title: "Daily game", onPlay: () => startDaily() },
+  onChange: (what) => { if (what === "me" || what === "import") { if (Profile.name && Profile.name !== S.name) { S.name = Profile.name; save(); } paintMe(); } },
+});
+function paintMe() {
+  const b = $("#bMe"); if (!b || !window.Profile) return;
+  let elo = "";
+  try { const e = Profile.stats().elo; if (e && e.games > 0) elo = ` <small>${e.rating}</small>`; } catch (e) {}
+  b.innerHTML = `${Profile.avatarSVG(Profile.avatar, 24)}<span>My stats${elo}</span>`;
+}
+$("#bMe").onclick = () => { $("#tip").hidden = true; Profile.openPanel(); };
+
+// ================================================================== guided first game (shared _coach kit)
+const myBoardShots = () => { const st = P.room && P.room.state; return st && st.shots ? st.shots[1] : []; };
+tour = COACH.tour({
+  id: "bs-first-game",
+  steps: tourSteps({
+    phase: () => (P.room && P.room.state ? P.room.state.phase : "place"),
+    myShots: () => myBoardShots().length,
+    myHits: () => myBoardShots().filter((x) => x.h).length,
+    sunkByMe: () => myBoardShots().filter((x) => x.k).length,
+  }),
+  pauseIf: () => tab !== "play" || !P.guided || !$("#sheet").hidden || $("#tab-play").classList.contains("mine-zoom") || (Profile.isOpen && Profile.isOpen()),
+  onFinish: () => {},
+});
+function startGuided() {
+  showTab("play");
+  startNew("computer", { guided: true });
+  tour.reset(); tour.start();
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest('[data-act="guided"],[data-act="guidedgo"]'); if (!b) return;
+  if (b.dataset.act === "guided" && (dailyOn() || quitPending())) {
+    // leaving the game on the table costs a loss: say so first
+    showTab("play");
+    return openSheet("confirm", `<h2>Guided game</h2><div class="warnline">${dailyOn() ? "Your Daily game" : "The game on the table"} will count as a loss.</div><div class="actions"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="guidedgo">Start guided game</button></div>`);
+  }
+  closeSheet(); startGuided();
+});
+
 // ================================================================== boot
 let resizeT = null;
 addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { mineZoom(false); if (tab === "play") { resetGrid(big); resetGrid(small); renderPlay(); } if (tab === "paper") { resetGrid(paperGrid); renderPaper(); } }, 150); });
@@ -1024,8 +1290,14 @@ try { const v = JSON.parse(localStorage.getItem("online.battleship")); resumed =
 if (resumed) {
   openOnline().then((room) => room.resume()).then((back) => { if (!back) { P.online = null; startNew("computer"); } }).catch(() => { P.online = null; startNew("computer"); });
 } else if (!resumeLocal()) startNew(S.opp === "pass" ? "pass" : "computer");
+else if (P.guided) tour.resume();
+save();
+paintMe();
 const start = (location.hash || "").slice(1);
 showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play", "replace");
+// first visit: offer the guided game once (nothing played yet, on the Play tab)
+if (!resumed && !store.local && !Profile.stats().games && !tour.seen() && tab === "play" && !P.guided)
+  COACH.offer({ id: "bs-first", title: "New to Battleship?", text: "A guided first game against the Random computer, one step at a time.", yes: "Teach me", no: "No thanks", onYes: () => startGuided() });
 // Home-screen app (js/pwa.js, shared _pwa kit): a new build may reload the page by itself only when nothing
 // would be lost: not online, no sheet or pass-the-phone cover up, no text field in use, and either the game
 // is over or a saved computer / pass-the-phone game waits while you read Rules or Settings (not Lab: its
@@ -1033,6 +1305,8 @@ showTab(["paper", "lab", "rules", "settings"].includes(start) ? start : "play", 
 // Any other time the kit shows "New version — tap to reload" instead.
 if (window.PWA) window.PWA.safeToReload = () => {
   if (P.mode === "online" || P.online) return false;
+  if (Profile.isOpen && Profile.isOpen()) return false;
+  if (P.guided && tour.current && tour.current()) return false;
   if (!$("#sheet").hidden || !$("#cover").hidden || P.cover != null) return false;
   const f = document.activeElement;
   if (f && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)) return false;
