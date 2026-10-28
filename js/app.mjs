@@ -1,14 +1,14 @@
 /* Battleship site: Play (computer / pass-the-phone / online), Paper companion, Lab, Rules, Settings.
    Rules live in js/engine.js; this file only draws and routes taps. */
 import { createLocal, createOnline } from "./online.js?v=a3d0418b";
-import { makeGame } from "./game.mjs?v=17";
-import { BS_LEVELS, BS_ACHIEVEMENTS, dailyFleet, profileResult, quitResult } from "./profile-bs.mjs?v=17";
-import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./guide.mjs?v=17";
+import { makeGame } from "./game.mjs?v=18";
+import { BS_LEVELS, BS_ACHIEVEMENTS, dailyFleet, profileResult, quitResult } from "./profile-bs.mjs?v=18";
+import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./guide.mjs?v=18";
 
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const Profile = window.Profile, COACH = window.COACH;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-27.17";
+const VERSION = "2026-10-27.18";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
