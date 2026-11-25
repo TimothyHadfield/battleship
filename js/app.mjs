@@ -8,7 +8,7 @@ import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./g
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const Profile = window.Profile, COACH = window.COACH;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-10-28.20";
+const VERSION = "2026-11-25.21";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;
@@ -202,7 +202,13 @@ function showTab(t, how = "push") {
 $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) showTab(b.dataset.tab); });
 addEventListener("popstate", (e) => {
   const sh = $("#sheet");
-  if (!sh.hidden && sh.dataset.kind !== "lobby") closeSheet();
+  if (quietPop) { // the step dropped by closing a sheet with its own button; a sheet opened meanwhile gets its step now
+    quietPop = false;
+    if (!sh.hidden && sh.dataset.kind !== "lobby" && !sheetStep) { try { history.pushState({ tab, sheet: 1 }, "", location.href); sheetStep = true; } catch (err) {} }
+    return;
+  }
+  if (sheetStep) { sheetStep = false; if (!sh.hidden && sh.dataset.kind !== "lobby") { closeSheet(true); return; } }
+  if (!sh.hidden && sh.dataset.kind !== "lobby") closeSheet(true);
   const h = (location.hash || "").slice(1);
   const t = (e.state && e.state.tab) || (["paper", "lab", "rules", "settings"].includes(h) ? h : "play");
   showTab(t, "pop");
@@ -784,7 +790,13 @@ function renderBattle(sn) {
     const d = describe(pub, e);
     return `<li class="${d.cls}">${esc(d.text).replace(/(hit[^<]*|sank[^<]*)$/, (m) => `<span class="${d.cls === "sunk" ? "k" : "h"}">${m}</span>`)}</li>`;
   }).join("");
-  if (pub.phase === "over" && !P.endShown) { P.endShown = true; setTimeout(() => showEnd(), 900); }
+  // the ending is a moment, not a cut: the last shot stays on the open boards 5 s (2.5 s on Fast) before the result
+  // (Catan lessons, Tim 2026-11-25); "Result" shows it sooner
+  if (pub.phase === "over" && !P.endShown) {
+    P.endShown = true;
+    const g = P.gen;
+    setTimeout(() => { const s = curSnap(); if (g === P.gen && s && s.pub && s.pub.phase === "over" && $("#sheet").hidden) showEnd(); }, S.botSpeed === "fast" ? 2500 : 5000);
+  }
 }
 
 // ---------------- replay: step through a finished game shot by shot, with the hit chance each shot had
@@ -913,10 +925,18 @@ async function ready() {
 }
 
 // ---------------- sheets
+// An open sheet (New game, result, …) is a Back step: the phone's Back closes it and stays in the game
+// instead of leaving the site (Tim: "Back goes where you just were"). The online lobby keeps its own Leave.
+let sheetStep = false, quietPop = false;
 function openSheet(kind, html) {
   const sh = $("#sheet"); sh.dataset.kind = kind; sh.innerHTML = `<div class="panel">${html}</div>`; sh.hidden = false;
+  if (!sheetStep && !quietPop && kind !== "lobby") { try { history.pushState({ tab, sheet: 1 }, "", location.href); sheetStep = true; } catch (e) {} }
 }
-function closeSheet() { const sh = $("#sheet"); sh.hidden = true; sh.dataset.kind = ""; sh.innerHTML = ""; }
+function closeSheet(fromPop) {
+  const sh = $("#sheet"); sh.hidden = true; sh.dataset.kind = ""; sh.innerHTML = "";
+  if (sheetStep && fromPop !== true) { quietPop = true; try { history.back(); } catch (e) { quietPop = false; } }
+  sheetStep = false;
+}
 $("#sheet").addEventListener("click", (e) => { if (e.target.id === "sheet" && $("#sheet").dataset.kind !== "lobby") closeSheet(); });
 
 let pickOpp = null;
