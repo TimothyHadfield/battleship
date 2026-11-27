@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node tests/engine.test.js && node tests/online.test.mjs && node tests/fx.test.mjs && node tests/profile.test.mjs && node tests/edge.test.js && node tests/variants.test.mjs",
     "lab": "node tools/lab-data.js 0.4",
-    "test:pwa": "node tools/pwa-check.mjs"
+    "test:pwa": "node tools/pwa-check.mjs",
+    "test:fit": "node tests/fit-ui.mjs"
   }
 }

@@ -8,7 +8,7 @@ import { tourSteps, guidedFleet, CAPTAINS, captainSVG as captainFace } from "./g
 const E = window.BSEngine, D = window.BSDensity, AI = window.BSAI, Art = window.BSArt, SIM = window.BSSim, LAB = window.BSLabData;
 const Profile = window.Profile, COACH = window.COACH;
 const game = makeGame(E, D, AI);
-const VERSION = "2026-11-25.21";
+const VERSION = "2026-11-27.22";
 
 // sounds + effects (js/fx.js, shared and copied unchanged; js/fxgame.js maps shots to sounds)
 const FX = window.FX, BSFx = window.BSFx;

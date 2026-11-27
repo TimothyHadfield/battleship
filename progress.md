@@ -1,7 +1,7 @@
 # Battleship — progress
 
 ## START HERE
-Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-10-28 (wave 3, build 19: house rules — 8×8/12×12 boards, small and sea-battle fleets, hit = shoot again; computer speed; start with my last fleet; Rules videos).
+Read order: this file → `CLAUDE.md` → `docs/rules-check.md` → `docs/ideas.md`. Last updated: 2026-11-27 (fit pass, build 22: tally names whole, bigger fleet labels, bigger sideways lid; `npm run test:fit`).
 Live: https://timothyhadfield.github.io/battleship/ · repo https://github.com/TimothyHadfield/battleship
 
 ## Goal right now
@@ -24,6 +24,7 @@ A finished Battleship site in the style of Tim's other game sites: real play (co
 | Real-table look (v11): wood table (`css/table.css` + `js/table.js`, shared kit copies), target grid = upright plastic lid with a peg hole per square, ocean grid = flat base leaning away (CSS 3-D), ships with deck peg holes, real-looking pegs, peg tray that runs down as pegs are used, opponent name plate on the back of their lid; laptop = case in the middle (lid above, base in front) + slim side panel | done v11 |
 | Edge pass (v12, 2026-10-20): 50 weird scenarios tested, 11 failed, all fixed (table below) | done v12; `tests/edge.test.js` |
 | Home-screen app + offline vs computer (v14, 2026-10-27, shared `_pwa` kit 1.1.0): manifest + icons, network-first service worker, "New version — tap to reload" | done v14; `npm run test:pwa` 3/16 before → 18/18 |
+| Fit pass 2026-11-27 (v22): crowded late game (55 shots each side) checked at 393×659, 320×568, 659×393, 1280×800, 1440×900. Tally names whole on phones (were "Battle…/Des…/P…"); your-fleet labels 7→8 px phone, 9→10 px laptop; sideways lid squares 25.6→28.6 px (tally moved to top of the right side); laptop 12×12 labels 9→12 px. Already fine: target squares 32.2 px at 393, laptop heat numbers 13.3/15.4 px, no page scroll, placement at 320 and sideways | done; `npm run test:fit` (tests/fit-ui.mjs, WebKit) 9 failing before → 37/37; `npm test`; `test:pwa` 18/18 |
 | Visibility pass (v13, 2026-10-21): laptop lid fills the table height (444→632 px at 1280×800, 514→732 at 1440), your base sits beside it (squares 18→24 px), tap "Your fleet ⤢" to see it as big as the lid (phone squares 11→33 px, pegs 4.7→14 px), sideways phone base 10.5→14.6 px, laptop heat numbers 9→13-15 px | done v13 |
 
 ### Edge pass v12 (2026-10-20)
@@ -126,6 +127,7 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Improvement pass v17 (Tim didn't pick these, plainest matching choice): heatmap off by default so games count; captain names/faces/lines; achievement names; Daily = vs Density, you fire first, official rules; "My stats" pill in the header; "Heatmap off · rated game" line; Undo icon-only on phones; guided-game text; laptop captain card in the empty wood above your fleet. Rematch + running score online skipped (online is out of scope).
 - Wave 3 v19 (Tim didn't pick these, plainest matching choice): 8×8 drops the Carrier; 12×12 adds Frigate 4 + Corvette 3 (names ours); small fleet 4,3,2; sea battle forces no touching + unnamed hits; speeds 1300/650/220 ms; "Start with my last fleet" (off); coach offer at the top; the 5 videos; one-square ships drawn as a small boat. Confirm-before-fire already existed (tap then Fire/tap again); animations on/off already in Sound & effects.
 - 2026-11-25 (Catan-lessons pass, v21): the result sheet now waits 5 s (2.5 s on Fast computer speed) so the last shot stays on the open boards (was 0.9 s); "Result" still opens it at once. Every sheet (New game, result, …) is now a Back step: phone Back closes it and stays (it used to leave the site; the online lobby keeps its own Leave). Already fine: random first player by default, no page scroll at 393×659 / 1280×720, the computer's fleet shown at the end of local games (online keeps fleets private by decision).
+- Fit pass v22 (2026-11-27, Tim didn't pick these, plainest matching choice): on phones the opponent's name plate shrinks ("Hunt …") so all 5 ship names show whole; ship icons in the tally narrow to fit; sideways phone puts the tally bar at the top of the right-hand side (no opponent plate there, as before); your fleet sideways shrinks 13.3→10.5 px squares to give the lid room (tap-to-enlarge still 25 px).
 - Ladder: Density > Hunt & target 85% (3,000 games), Hunt & target > Random 98.5%; Elo 700 / 1450 / 1750. Density picks at random among squares within 15% of the best (`JITTER`), strength unchanged within noise (84.6% vs 85.4%).
 
 ## NOT verified
@@ -141,4 +143,5 @@ Passed untouched: double-tap Ready/Fire/squares, taps on the computer's turn, Ne
 - Home-screen app v14: never added to a real iPhone home screen; offline + new-build pickup checked only in headless WebKit/Chromium against a Pages-like local server (and the live service worker in headless WebKit). The "New version — tap to reload" pill (dark, top centre) is the kit's plain look; Tim hasn't seen it.
 - v17: guided game walked through all 8 steps only in headless Chrome (WebKit headless ran no frames here); Daily sheet, burst and sink seen in Chrome screenshots; no real iPhone. Daily "same fleet for everyone" checked by seed, not across two devices.
 - v19: house rules online not played with two real browsers (node wrapper games only); one-square boat drag not tried on a real touch screen; layout checked headless WebKit 393/320/659×393/1280/1440 (Chromium rerun after the last landscape fix not done); no real iPhone.
+- Fit pass v22: headless WebKit only, no real iPhone. 320×568 target squares stay 24.7 px (height-bound: the info column below has 8 px slack); 12×12 phone squares 26.8 (393) / 20.6 (320) px and its fleet labels 7 px unchanged. Paper tab tally gets the same CSS but wasn't screenshotted crowded.
 - "Findable" under no-touch compares against the touching-allowed reference rescaled to the no-touch average (reasoned approximation).

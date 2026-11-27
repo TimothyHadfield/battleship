@@ -58,3 +58,10 @@
 - **Verified:** `tests/variants.test.mjs` seen failing on the old engine and old profile-bs, passes now; `npm test` 6 suites; `test:pwa` 18/18 WebKit; ladder measured in node on every board/fleet; scratchpad `bs-w3/layout.mjs` 45 views WebKit 0 failing; videos via YouTube oembed.
 - **Open:** progress.md NOT verified (v19 line).
 - **Kit sweep v20 (same day, builder A1):** game-coach 1.2.0 + game-pwa 1.4.0 re-copied, offer `place:'auto'` avoiding Ready (local top rule removed); offer clear of tab bar + Ready at 393×659 / 320×568 / 659×393, settings 320 px no sideways scroll, no selects, `npm test` green, pwa-check 18/18.
+
+## 2026-11-27 — fit pass (v22, builder for the manager)
+- **Asked:** Tim: "go through every game in the cite and make sure that they all are good in theat aspect specifically" (spacing, sizing, seeing the full screen). Scope: size/space only, no restyle.
+- **Found (crowded late game, 55 shots each side, WebKit):** fleet tally names cut on phones ("Battle…", "Des…", "P…"); fleet-grid labels 7 px (phone) / 9 px (laptop); sideways lid squares 25.6 px with the tally eating 30 px of height; laptop 12×12 labels stuck at the phone's 9/7 px.
+- **Built (CSS only):** names kept whole (icon narrows, opponent plate gives way first); fleet labels 8 / 10 px; sideways tally moved to the top of the right side so the lid is 28.6 px squares; laptop 12×12 labels 12 / 9 px. `tests/fit-ui.mjs` (`npm run test:fit`).
+- **Verified:** fit test 9 failing on old CSS → 37/37; `npm test` 6 suites; `test:pwa` 18/18; screenshots 393/320/659×393/1280/1440 crowded + placement + 12×12 + sideways fleet zoom.
+- **Open:** 320×568 lid squares stay 24.7 px (height-bound); see NOT verified.
